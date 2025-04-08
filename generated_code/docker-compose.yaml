@@ -1,0 +1,111 @@
+version: "3.9"
+services:
+
+  client-devices:
+    container_name: client-devices
+    image: image_registry_url                # Manually(Optional if build)
+    build:
+      context: ./path                        # Manually
+      dockerfile: ./path/.../Dockerfile      # Manually
+    environment:
+      - ENV_NAME:ENV_VALUE                   # Manually
+    ports:
+      - "1111:1111"                          # Manually
+    volumes:
+      - ./path:/app                          # Manually
+
+  web-server:
+    container_name: web-server
+    image: image_registry_url                # Manually(Optional if build)
+    build:
+      context: ./path                        # Manually
+      dockerfile: ./path/.../Dockerfile      # Manually
+    environment:
+      - ENV_NAME:ENV_VALUE                   # Manually
+    ports:
+      - "1111:1111"                          # Manually
+    volumes:
+      - ./path:/app                          # Manually
+    depends_on:
+      - client-devices
+
+
+  application-server:
+    container_name: application-server
+    image: image_registry_url                # Manually(Optional if build)
+    build:
+      context: ./path                        # Manually
+      dockerfile: ./path/.../Dockerfile      # Manually
+    environment:
+      - ENV_NAME:ENV_VALUE                   # Manually
+    ports:
+      - "1111:1111"                          # Manually
+    volumes:
+      - ./path:/app                          # Manually
+    depends_on:
+      - web-server
+
+
+  database-server:
+    container_name: database-server
+    image: image_registry_url                # Manually(Optional if build)
+    build:
+      context: ./path                        # Manually
+      dockerfile: ./path/.../Dockerfile      # Manually
+    environment:
+      - ENV_NAME:ENV_VALUE                   # Manually
+    ports:
+      - "1111:1111"                          # Manually
+    volumes:
+      - ./path:/app                          # Manually
+    depends_on:
+      - application-server
+
+
+  file-storage:
+    container_name: file-storage
+    image: image_registry_url                # Manually(Optional if build)
+    build:
+      context: ./path                        # Manually
+      dockerfile: ./path/.../Dockerfile      # Manually
+    environment:
+      - ENV_NAME:ENV_VALUE                   # Manually
+    ports:
+      - "1111:1111"                          # Manually
+    volumes:
+      - ./path:/app                          # Manually
+    depends_on:
+      - application-server
+
+
+  message-queue:
+    container_name: message-queue
+    image: image_registry_url                # Manually(Optional if build)
+    build:
+      context: ./path                        # Manually
+      dockerfile: ./path/.../Dockerfile      # Manually
+    environment:
+      - ENV_NAME:ENV_VALUE                   # Manually
+    ports:
+      - "1111:1111"                          # Manually
+    volumes:
+      - ./path:/app                          # Manually
+    depends_on:
+      - application-server
+
+
+  logging-monitoring:
+    container_name: logging-monitoring
+    image: image_registry_url                # Manually(Optional if build)
+    build:
+      context: ./path                        # Manually
+      dockerfile: ./path/.../Dockerfile      # Manually
+    environment:
+      - ENV_NAME:ENV_VALUE                   # Manually
+    ports:
+      - "1111:1111"                          # Manually
+    volumes:
+      - ./path:/app                          # Manually
+    depends_on:
+      - application-server
+

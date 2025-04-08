@@ -1,4 +1,5 @@
 import json
+import re
 from pathlib import Path
 from typing import Dict, Any
 from jinja2 import Template
@@ -107,8 +108,43 @@ class ClassGenerator(Generator):
         return parsed_data
 
 
+class DockerComposeGenerator(Generator):
+    """ Генератор docker-compose.yaml """
+
+    def sanitize_name(self, name: str) -> str:
+        name = name.lower().replace(" ", "-")
+        name = re.sub(r'[^a-z0-9\-]', '', name)
+        name = re.sub(r'-+', '-', name)
+        return name.strip("-")
+
+    def parse_data(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        nodes = data.get("nodes", [])
+        connections = data.get("connections", [])
+
+        service_map = {node["name"]: {
+            "name": node["name"],
+            "depends_on": []
+        } for node in nodes}
+
+        for conn in connections:
+            src = conn["from"]
+            dest = conn["to"]
+            service_map[dest]["depends_on"].append(src)
+
+        parsed_services = []
+        for svc in service_map.values():
+            sanitized_name = self.sanitize_name(svc["name"])
+            depends = [self.sanitize_name(dep) for dep in svc["depends_on"]]
+            parsed_services.append({
+                "container_name": sanitized_name,
+                "depends_on": depends if depends else []
+            })
+
+        return {"services": parsed_services}
+
+
 def detect_generator(file_path: str) -> Generator:
-    """ Определяет, что генерировать: SQL или классы """
+    """ Определяет, что генерировать: SQL, классы или docker-compose """
     with open(file_path, encoding="utf-8") as file:
         data = json.load(file)
 
@@ -116,12 +152,14 @@ def detect_generator(file_path: str) -> Generator:
         return SQLGenerator(file_path, "jinja_templates/sql_template.jinja2", "generated_sql/schema.sql")
     elif "classes" in data:
         return ClassGenerator(file_path, "jinja_templates/classes.jinja2", "generated_code/models.py")
+    elif "nodes" in data and "connections" in data:
+        return DockerComposeGenerator(file_path, "jinja_templates/docker_compose.jinja2", "generated_code/docker-compose.yaml")
     else:
-        raise ValueError("Неизвестный формат JSON. Ожидаются ключи 'tables' или 'classes'.")
+        raise ValueError("Неизвестный формат JSON. Ожидаются ключи 'tables', 'classes' или 'nodes'.")
 
 
 if __name__ == "__main__":
-    file_path = "json_templates/schema.json"  # Укажите путь к JSON-файлу
+    file_path = "json_templates/doker.json"  # Укажите путь к JSON-файлу
     try:
         generator = detect_generator(file_path)
         generator.generate()

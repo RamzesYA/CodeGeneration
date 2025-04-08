@@ -1,0 +1,19 @@
+version: "3.9"
+services:
+{% for service in services %}
+  {{ service.container_name }}:
+    container_name: {{ service.container_name }}
+    image: image_registry_url                # Manually(Optional if build)
+    build:
+      context: ./path                        # Manually
+      dockerfile: ./path/.../Dockerfile      # Manually
+    environment:
+      - ENV_NAME:ENV_VALUE                   # Manually
+    ports:
+      - "1111:1111"                          # Manually
+    volumes:
+      - ./path:/app                          # Manually
+{% if service.depends_on %}    depends_on:{% for dep in service.depends_on %}
+      - {{ dep }}
+{% endfor %}
+{% endif %}{% endfor %}
