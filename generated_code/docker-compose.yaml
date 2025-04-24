@@ -1,21 +1,8 @@
 version: "3.9"
 services:
 
-  client-devices:
-    container_name: client-devices
-    image: image_registry_url                # Manually(Optional if build)
-    build:
-      context: ./path                        # Manually
-      dockerfile: ./path/.../Dockerfile      # Manually
-    environment:
-      - ENV_NAME:ENV_VALUE                   # Manually
-    ports:
-      - "1111:1111"                          # Manually
-    volumes:
-      - ./path:/app                          # Manually
-
-  web-server:
-    container_name: web-server
+  backend:
+    container_name: backend
     image: image_registry_url                # Manually(Optional if build)
     build:
       context: ./path                        # Manually
@@ -27,11 +14,11 @@ services:
     volumes:
       - ./path:/app                          # Manually
     depends_on:
-      - client-devices
+      - frontend
 
 
-  application-server:
-    container_name: application-server
+  database:
+    container_name: database
     image: image_registry_url                # Manually(Optional if build)
     build:
       context: ./path                        # Manually
@@ -43,11 +30,24 @@ services:
     volumes:
       - ./path:/app                          # Manually
     depends_on:
-      - web-server
+      - backend
 
 
-  database-server:
-    container_name: database-server
+  frontend:
+    container_name: frontend
+    image: image_registry_url                # Manually(Optional if build)
+    build:
+      context: ./path                        # Manually
+      dockerfile: ./path/.../Dockerfile      # Manually
+    environment:
+      - ENV_NAME:ENV_VALUE                   # Manually
+    ports:
+      - "1111:1111"                          # Manually
+    volumes:
+      - ./path:/app                          # Manually
+
+  worker:
+    container_name: worker
     image: image_registry_url                # Manually(Optional if build)
     build:
       context: ./path                        # Manually
@@ -59,11 +59,11 @@ services:
     volumes:
       - ./path:/app                          # Manually
     depends_on:
-      - application-server
+      - backend
 
 
-  file-storage:
-    container_name: file-storage
+  redis:
+    container_name: redis
     image: image_registry_url                # Manually(Optional if build)
     build:
       context: ./path                        # Manually
@@ -75,11 +75,11 @@ services:
     volumes:
       - ./path:/app                          # Manually
     depends_on:
-      - application-server
+      - backend
 
 
-  message-queue:
-    container_name: message-queue
+  nginx:
+    container_name: nginx
     image: image_registry_url                # Manually(Optional if build)
     build:
       context: ./path                        # Manually
@@ -91,21 +91,7 @@ services:
     volumes:
       - ./path:/app                          # Manually
     depends_on:
-      - application-server
+      - backend
 
-
-  logging-monitoring:
-    container_name: logging-monitoring
-    image: image_registry_url                # Manually(Optional if build)
-    build:
-      context: ./path                        # Manually
-      dockerfile: ./path/.../Dockerfile      # Manually
-    environment:
-      - ENV_NAME:ENV_VALUE                   # Manually
-    ports:
-      - "1111:1111"                          # Manually
-    volumes:
-      - ./path:/app                          # Manually
-    depends_on:
-      - application-server
+      - frontend
 

@@ -75,8 +75,6 @@ class SQLGenerator(Generator):
 
             parsed_data["tables"].append(parsed_table)
 
-        print(parsed_data)
-
         return parsed_data
 
 
@@ -149,9 +147,9 @@ def detect_generator(file_path: str) -> Generator:
         data = json.load(file)
 
     if "tables" in data:
-        return SQLGenerator(file_path, "jinja_templates/sql_template.jinja2", "generated_sql/schema.sql")
+        return SQLGenerator(file_path, "jinja_templates/sql_template.jinja2", "generated_sql/db.sql")
     elif "classes" in data:
-        return ClassGenerator(file_path, "jinja_templates/classes.jinja2", "generated_code/models.py")
+        return ClassGenerator(file_path, "jinja_templates/classes.jinja2", "generated_code/classes.py")
     elif "nodes" in data and "connections" in data:
         return DockerComposeGenerator(file_path, "jinja_templates/docker_compose.jinja2", "generated_code/docker-compose.yaml")
     else:
@@ -159,7 +157,7 @@ def detect_generator(file_path: str) -> Generator:
 
 
 if __name__ == "__main__":
-    file_path = "json_templates/doker.json"  # Укажите путь к JSON-файлу
+    file_path = "json_templates/db.json"  # Укажите путь к JSON-файлу
     try:
         generator = detect_generator(file_path)
         generator.generate()

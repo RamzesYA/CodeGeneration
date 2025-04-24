@@ -1,0 +1,67 @@
+{
+  "classes": [
+    {
+      "name": "User",
+      "attributes": [
+        {"name": "id", "type": "int"},
+        {"name": "username", "type": "str"},
+        {"name": "email", "type": "str"}
+      ],
+      "methods": [
+        {"name": "create_task", "return_type": "Task", "params": [{"name": "title", "type": "str"}, {"name": "project", "type": "Project"}]}
+      ],
+      "inherits": null
+    },
+    {
+      "name": "Project",
+      "attributes": [
+        {"name": "id", "type": "int"},
+        {"name": "name", "type": "str"},
+        {"name": "owner", "type": "User"},
+        {"name": "members", "type": "List[User]"}
+      ],
+      "methods": [
+        {"name": "add_member", "return_type": "None", "params": [{"name": "user", "type": "User"}]},
+        {"name": "create_task", "return_type": "Task", "params": [{"name": "title", "type": "str"}, {"name": "creator", "type": "User"}]}
+      ],
+      "inherits": null
+    },
+    {
+      "name": "Task",
+      "attributes": [
+        {"name": "id", "type": "int"},
+        {"name": "title", "type": "str"},
+        {"name": "description", "type": "str"},
+        {"name": "status", "type": "str"},
+        {"name": "assignee", "type": "User"},
+        {"name": "project", "type": "Project"},
+        {"name": "comments", "type": "List[Comment]"}
+      ],
+      "methods": [
+        {"name": "change_status", "return_type": "None", "params": [{"name": "new_status", "type": "str"}]},
+        {"name": "assign_to", "return_type": "None", "params": [{"name": "user", "type": "User"}]}
+      ],
+      "inherits": null
+    },
+    {
+      "name": "Comment",
+      "attributes": [
+        {"name": "id", "type": "int"},
+        {"name": "content", "type": "str"},
+        {"name": "author", "type": "User"},
+        {"name": "task", "type": "Task"}
+      ],
+      "methods": [
+        {"name": "edit", "return_type": "None", "params": [{"name": "new_content", "type": "str"}]}
+      ],
+      "inherits": null
+    }
+  ],
+  "relationships": [
+    {"type": "association", "from": "User", "to": "Task", "multiplicity": "one-to-many"},
+    {"type": "association", "from": "User", "to": "Project", "multiplicity": "many-to-many"},
+    {"type": "composition", "from": "Project", "to": "Task", "multiplicity": "one-to-many"},
+    {"type": "composition", "from": "Task", "to": "Comment", "multiplicity": "one-to-many"},
+    {"type": "association", "from": "User", "to": "Comment", "multiplicity": "one-to-many"}
+  ]
+}

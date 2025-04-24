@@ -1,0 +1,58 @@
+{
+  "tables": [
+    {
+      "name": "Users",
+      "columns": [
+        {"name": "user_id", "type": "INT", "primary_key": true, "auto_increment": true},
+        {"name": "username", "type": "VARCHAR(100)", "not_null": true},
+        {"name": "email", "type": "VARCHAR(255)", "not_null": true},
+        {"name": "password_hash", "type": "VARCHAR(255)", "not_null": true},
+        {"name": "created_at", "type": "TIMESTAMP", "not_null": true},
+        {"name": "updated_at", "type": "TIMESTAMP", "not_null": true}
+      ]
+    },
+    {
+      "name": "Projects",
+      "columns": [
+        {"name": "project_id", "type": "INT", "primary_key": true, "auto_increment": true},
+        {"name": "name", "type": "VARCHAR(100)", "not_null": true},
+        {"name": "description", "type": "TEXT", "not_null": true},
+        {"name": "owner_id", "type": "INT", "foreign_key": {"references": "Users", "column": "user_id"}},
+        {"name": "created_at", "type": "TIMESTAMP", "not_null": true},
+        {"name": "updated_at", "type": "TIMESTAMP", "not_null": true}
+      ]
+    },
+    {
+      "name": "Tasks",
+      "columns": [
+        {"name": "task_id", "type": "INT", "primary_key": true, "auto_increment": true},
+        {"name": "title", "type": "VARCHAR(255)", "not_null": true},
+        {"name": "description", "type": "TEXT", "not_null": true},
+        {"name": "status", "type": "VARCHAR(50)", "not_null": true},
+        {"name": "priority", "type": "VARCHAR(50)", "not_null": true},
+        {"name": "project_id", "type": "INT", "foreign_key": {"references": "Projects", "column": "project_id"}},
+        {"name": "assigned_to", "type": "INT", "foreign_key": {"references": "Users", "column": "user_id"}},
+        {"name": "created_at", "type": "TIMESTAMP", "not_null": true},
+        {"name": "updated_at", "type": "TIMESTAMP", "not_null": true}
+      ]
+    },
+    {
+      "name": "Comments",
+      "columns": [
+        {"name": "comment_id", "type": "INT", "primary_key": true, "auto_increment": true},
+        {"name": "task_id", "type": "INT", "foreign_key": {"references": "Tasks", "column": "task_id"}},
+        {"name": "user_id", "type": "INT", "foreign_key": {"references": "Users", "column": "user_id"}},
+        {"name": "content", "type": "TEXT", "not_null": true},
+        {"name": "created_at", "type": "TIMESTAMP", "not_null": true}
+      ]
+    }
+  ],
+  "relationships": [
+    {"type": "one-to-many", "from": "Users", "to": "Projects", "on": "user_id"},
+    {"type": "one-to-many", "from": "Users", "to": "Tasks", "on": "user_id"},
+    {"type": "many-to-one", "from": "Tasks", "to": "Projects", "on": "project_id"},
+    {"type": "many-to-one", "from": "Tasks", "to": "Users", "on": "assigned_to"},
+    {"type": "one-to-many", "from": "Tasks", "to": "Comments", "on": "task_id"},
+    {"type": "many-to-one", "from": "Comments", "to": "Users", "on": "user_id"}
+  ]
+}

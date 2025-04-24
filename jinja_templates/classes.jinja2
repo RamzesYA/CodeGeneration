@@ -1,3 +1,5 @@
+from typing import List
+
 {% for class in classes %}
 class {{ class.name }}{% if class.inherits %}({{ class.inherits }}){% endif %}:
     def __init__(self{% if class.inherits %}{% for parent in classes if parent.name == class.inherits %}{% for attr, type in parent.attributes %}, {{ attr }}: {{ type }}{% endfor %}{% endfor %}{% endif %}{% for attr, type in class.attributes %}, {{ attr }}: {{ type }}{% endfor %}):
@@ -9,7 +11,7 @@ class {{ class.name }}{% if class.inherits %}({{ class.inherits }}){% endif %}:
         {% endfor %}
 
     {% for method in class.methods %}
-    def {{ method.name }}(self{% for param, param_type in method.params %}, {{ param }}: {{ param_type }}{% endfor %}) -> {{ method.return_type }}:
+    def {{ method.name }}(self{% for param, param_type in method.params %}, {{ param }}: {{ param_type }}{% endfor %}) -> {% if method.return_type == "None" %}None{% else %}'{{ method.return_type }}'{% endif %}:
         pass
     {% endfor %}
 {% endfor %}

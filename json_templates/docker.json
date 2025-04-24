@@ -1,0 +1,54 @@
+{
+  "nodes": [
+    {
+      "name": "Backend"
+    },
+    {
+      "name": "Database"
+    },
+    {
+      "name": "Frontend"
+    },
+    {
+      "name": "Worker"
+    },
+    {
+      "name": "Redis"
+    },
+    {
+      "name": "Nginx"
+    }
+  ],
+  "connections": [
+    {
+      "from": "Frontend",
+      "to": "Backend",
+      "label": "HTTPS"
+    },
+    {
+      "from": "Backend",
+      "to": "Database",
+      "label": "PostgreSQL"
+    },
+    {
+      "from": "Backend",
+      "to": "Redis",
+      "label": "AMQP"
+    },
+    {
+      "from": "Backend",
+      "to": "Worker",
+      "label": "AMQP"
+    },
+    {
+      "from": "Backend",
+      "to": "Nginx",
+      "label": "HTTP"
+    },
+    {
+      "from": "Frontend",
+      "to": "Nginx",
+      "label": "HTTP"
+    }
+  ]
+}
