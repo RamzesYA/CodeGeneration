@@ -1,0 +1,16 @@
+{% for table in tables %}
+CREATE TABLE `{{ table.name }}` (
+    {% for column in table.columns %}
+    `{{ column.name }}` {{ column.type }}
+    {% if column.primary_key %} PRIMARY KEY{% endif %}
+    {% if column.auto_increment %} AUTO_INCREMENT{% endif %}
+    {% if column.not_null %} NOT NULL{% endif %}
+    {% if not loop.last %},{% endif %}
+    {% endfor %}
+    {% if table.columns|selectattr('foreign_key')|list %}
+    ,{% for column in table.columns if column.foreign_key %}
+    FOREIGN KEY (`{{ column.name }}`) REFERENCES `{{ column.foreign_key.references }}`(`{{ column.foreign_key.column }}`){% if not loop.last %},{% endif %}
+    {% endfor %}
+    {% endif %}
+) ENGINE=InnoDB;
+{% endfor %}

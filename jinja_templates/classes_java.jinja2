@@ -1,0 +1,15 @@
+import java.util.List;
+
+{% for cls in classes %}
+public class {{ cls.name }}{% if cls.inherits %} extends {{ cls.inherits }}{% endif %} {
+    {% for attr_name, attr_type in cls.attributes %}
+    private {{ attr_type }} {{ attr_name }};
+    {% endfor %}
+
+    {% for method in cls.methods %}
+    public {{ method.return_type }} {{ method.name }}({% for param_name, param_type in method.params %}{{ param_type }} {{ param_name }}{% if not loop.last %}, {% endif %}{% endfor %}) {
+        {% if method.return_type != "void" %}return null;{% endif %}
+    }
+    {% endfor %}
+}
+{% endfor %}

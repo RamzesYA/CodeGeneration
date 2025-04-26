@@ -78,31 +78,116 @@ class SQLGenerator(Generator):
         return parsed_data
 
 
-class ClassGenerator(Generator):
-    """ Генератор Python-классов """
+class MySQLGenerator(SQLGenerator):
+    """ Генератор SQL-кода для MySQL """
+
+    def __init__(self, file_path: str):
+        super().__init__(file_path, "jinja_templates/mysql_template.jinja2", "generated_sql/mysql_db.sql")
+
+
+class OracleSQLGenerator(SQLGenerator):
+    """ Генератор SQL-кода для Oracle """
+
+    def __init__(self, file_path: str):
+        super().__init__(file_path, "jinja_templates/oracle_template.jinja2", "generated_sql/oracle_db.sql")
+
+
+class PythonClassGenerator(Generator):
+    """ Генератор Python-классов с типами """
+
+    def map_type(self, type_name: str) -> str:
+        """ Сопоставление типов для Python """
+        type_mappings = {
+            "int": "int",
+            "str": "str",
+            "float": "float",
+            "bool": "bool",
+            "Any": "Any"
+        }
+        if type_name.startswith("List["):
+            inner_type = type_name[5:-1]
+            return f"List[{self.map_type(inner_type)}]"
+        return type_mappings.get(type_name, type_name)
 
     def parse_data(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        """ Разбирает JSON-схему UML-диаграммы классов """
+        """ Разбирает JSON-схему UML-диаграммы классов для Python """
         classes = data.get("classes", [])
         parsed_data = {"classes": []}
 
         for cls in classes:
             methods = []
             for method in cls.get("methods", []):
-                params = [(param["name"], param["type"]) for param in method.get("params", [])]
+                params = [(param["name"], self.map_type(param["type"])) for param in method.get("params", [])]
                 methods.append({
                     "name": method["name"],
                     "params": params,
-                    "return_type": method.get("return_type", "None")
+                    "return_type": self.map_type(method.get("return_type", "None"))
                 })
 
             parsed_data["classes"].append({
                 "name": cls.get("name"),
-                "attributes": [(attr["name"], attr.get("type", "Any")) for attr in cls.get("attributes", [])],
+                "attributes": [(attr["name"], self.map_type(attr.get("type", "Any"))) for attr in cls.get("attributes", [])],
                 "methods": methods,
                 "inherits": cls.get("inherits", None)
             })
 
+        return parsed_data
+
+
+class JavaClassGenerator(PythonClassGenerator):
+    """ Генератор Java-классов """
+    def map_type(self, type_name: str) -> str:
+        """ Сопоставление типов Python -> Java """
+        type_mappings = {
+            "int": "int",
+            "str": "String",
+            "float": "float",
+            "bool": "boolean",
+            "Any": "Object",
+            "None": "void"  # ВАЖНО: исправляем None -> void
+        }
+        if type_name.startswith("List["):
+            inner_type = type_name[5:-1]
+            return f"List<{self.map_type(inner_type)}>"
+        return type_mappings.get(type_name, type_name)
+
+    def parse_data(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """ Разбирает и сопоставляет типы для Java """
+        parsed_data = super().parse_data(data)
+        for cls in parsed_data["classes"]:
+            cls["attributes"] = [(name, self.map_type(tp)) for name, tp in cls["attributes"]]
+            for method in cls["methods"]:
+                method["params"] = [(name, self.map_type(tp)) for name, tp in method["params"]]
+                method["return_type"] = self.map_type(method["return_type"])
+        return parsed_data
+
+
+class CppClassGenerator(PythonClassGenerator):
+    """ Генератор C++-классов """
+
+    def map_type(self, type_name: str) -> str:
+        """ Сопоставляет типы Python -> C++ """
+        type_mappings = {
+            "int": "int",
+            "str": "std::string",
+            "float": "float",
+            "bool": "bool",
+            "Any": "auto",
+            "None": "void"  # ВАЖНО: исправляем None -> void
+        }
+        if type_name.startswith("List["):
+            inner_type = type_name[5:-1]
+            return f"std::vector<{self.map_type(inner_type)}>"
+        return type_mappings.get(type_name, type_name)
+
+    def parse_data(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """ Разбирает и сопоставляет типы для C++ """
+        parsed_data = super().parse_data(data)
+        for cls in parsed_data["classes"]:
+            cls["attributes"] = [(name, self.map_type(tp)) for name, tp in cls["attributes"]]
+            for method in cls["methods"]:
+                method["params"] = [(name, self.map_type(tp)) for name, tp in method["params"]]
+                method["return_type"] = self.map_type(method["return_type"])
         return parsed_data
 
 
@@ -142,14 +227,28 @@ class DockerComposeGenerator(Generator):
 
 
 def detect_generator(file_path: str) -> Generator:
-    """ Определяет, что генерировать: SQL, классы или docker-compose """
+    """ Определяет, какой генератор использовать: SQL, Классы (Python/Java/Cpp) или Docker Compose """
     with open(file_path, encoding="utf-8") as file:
         data = json.load(file)
 
     if "tables" in data:
-        return SQLGenerator(file_path, "jinja_templates/sql_template.jinja2", "generated_sql/db.sql")
+        db_type = input("Выберите тип базы данных для генерации (mysql/oracle): ").strip().lower()
+        if db_type == "mysql":
+            return MySQLGenerator(file_path)
+        elif db_type == "oracle":
+            return OracleSQLGenerator(file_path)
+        else:
+            raise ValueError(f"Неизвестная база данных: {db_type}")
     elif "classes" in data:
-        return ClassGenerator(file_path, "jinja_templates/classes.jinja2", "generated_code/classes.py")
+        language = input("Выберите язык генерации (python/java/cpp): ").strip().lower()
+        if language == "python":
+            return PythonClassGenerator(file_path, "jinja_templates/classes_python.jinja2", "generated_code/classes.py")
+        elif language == "java":
+            return JavaClassGenerator(file_path, "jinja_templates/classes_java.jinja2", "generated_code/classes.java")
+        elif language == "cpp":
+            return CppClassGenerator(file_path, "jinja_templates/classes_cpp.jinja2", "generated_code/classes.cpp")
+        else:
+            raise ValueError(f"Неизвестный язык генерации: {language}")
     elif "nodes" in data and "connections" in data:
         return DockerComposeGenerator(file_path, "jinja_templates/docker_compose.jinja2", "generated_code/docker-compose.yaml")
     else:
