@@ -1,20 +1,12 @@
 #include <string>
 #include <vector>
 {% set all_classes = classes | map(attribute="name") | list %}
-{% for class_name in all_classes %}
-class {{ class_name }};
+{% for class_name in all_classes %}class {{ class_name }};
 {% endfor %}
-
 {% for cls in classes %}
 class {{ cls.name }}{% if cls.inherits %} : public {{ cls.inherits }}{% endif %} {
-public:
-    {% for method in cls.methods %}
-    {{ method.return_type }} {{ method.name }}({% for param_name, param_type in method.params %}{{ param_type }} {{ param_name }}{% if not loop.last %}, {% endif %}{% endfor %});
-    {% endfor %}
-
-private:
-    {% for attr_name, attr_type in cls.attributes %}
-    {{ attr_type }} {{ attr_name }};
-    {% endfor %}
-};
+public:{% for method in cls.methods %}
+    {{ method.return_type }} {{ method.name }}({% for param_name, param_type in method.params %}{{ param_type }} {{ param_name }}{% if not loop.last %}, {% endif %}{% endfor %});{% endfor %}
+private:{% for attr_name, attr_type in cls.attributes %}{{ attr_type }} {{ attr_name }};
+    {% endfor %}};
 {% endfor %}

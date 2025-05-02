@@ -1,17 +1,196 @@
 import json
 import re
+import subprocess
 from pathlib import Path
 from typing import Dict, Any
 from jinja2 import Template
 
 
+class CodeValidator:
+    """ Проверка сгенерированного кода для Python, Java и C++ """
+
+    def __init__(self, language: str):
+        self.language = language.lower()
+
+    def validate(self, file_path: str):
+        if self.language == "python":
+            self._validate_python(file_path)
+        elif self.language == "java":
+            self._validate_java(file_path)
+        elif self.language == "cpp":
+            self._validate_cpp(file_path)
+        else:
+            print(f"⚠️ Валидация для языка '{self.language}' пока не поддерживается.")
+
+    def _validate_python(self, file_path: str):
+        print(f"🔍 Проверка Python кода: {file_path}")
+        try:
+            with open(file_path, "r", encoding="utf-8") as f:
+                source = f.read()
+            compile(source, file_path, "exec")
+            print("✅ Python код успешно прошел проверку.\n")
+        except SyntaxError as e:
+            print(f"❌ Ошибка в Python коде:\n{e}\n")
+
+    def _validate_java(self, file_path: str):
+        print(f"🔍 Проверка Java кода: {file_path}")
+        try:
+            subprocess.run(["javac", file_path], check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            print("✅ Java код успешно прошел проверку.\n")
+        except subprocess.CalledProcessError as e:
+            print(f"❌ Ошибка компиляции Java:\n{e.stderr.decode()}\n")
+        except FileNotFoundError:
+            print("❌ Компилятор Java (javac) не найден. Убедитесь, что он установлен и добавлен в PATH.\n")
+
+    def _validate_cpp(self, file_path: str):
+        print(f"🔍 Проверка C++ кода: {file_path}")
+        try:
+            subprocess.run(["g++", "-fsyntax-only", file_path], check=True, stdout=subprocess.PIPE,
+                           stderr=subprocess.PIPE)
+            print("✅ C++ код успешно прошел проверку.\n")
+        except subprocess.CalledProcessError as e:
+            print(f"❌ Ошибка компиляции C++:\n{e.stderr.decode()}\n")
+        except FileNotFoundError:
+            print("❌ Компилятор C++ (g++) не найден. Убедитесь, что он установлен и добавлен в PATH.\n")
+
+
+class ClassDiagramValidator:
+    """ Проверка корректности представления диаграммы классов (без проверки связей) """
+
+    def __init__(self, data: Dict[str, Any]):
+        self.data = data
+        self.class_names = {cls["name"] for cls in data.get("classes", [])}
+
+    def validate(self) -> None:
+        """ Проверяет корректность диаграммы классов """
+        self._validate_classes()
+
+    def _validate_classes(self) -> None:
+        """ Проверяет корректность классов (наличие обязательных полей и правильность типов) """
+        for cls in self.data.get("classes", []):
+            self._validate_class(cls)
+
+    def _validate_class(self, cls: Dict[str, Any]) -> None:
+        """ Проверяет корректность одного класса """
+        if not cls.get("name"):
+            raise ValueError(f"Класс должен иметь имя. Проблема в классе: {cls}")
+
+        if "attributes" not in cls or "methods" not in cls:
+            raise ValueError(f"Класс {cls['name']} должен иметь поля 'attributes' и 'methods'.")
+
+        # Проверка атрибутов
+        for attr in cls.get("attributes", []):
+            if "name" not in attr or "type" not in attr:
+                raise ValueError(f"Атрибут {attr} в классе {cls['name']} должен иметь 'name' и 'type'.")
+
+        # Проверка методов
+        for method in cls.get("methods", []):
+            if "name" not in method or "return_type" not in method:
+                raise ValueError(f"Метод {method} в классе {cls['name']} должен иметь 'name' и 'return_type'.")
+
+            for param in method.get("params", []):
+                if "name" not in param or "type" not in param:
+                    raise ValueError(f"Параметр {param} в методе {method['name']} должен иметь 'name' и 'type'.")
+
+
+class DatabaseDiagramValidator:
+    """Проверяет корректность представления диаграммы базы данных."""
+
+    def __init__(self, diagram: dict):
+        self.diagram = diagram
+
+    def validate(self) -> None:
+        """Запускает все проверки."""
+        if "tables" not in self.diagram:
+            raise ValueError("Диаграмма должна содержать ключ 'tables'.")
+
+        if not isinstance(self.diagram["tables"], list):
+            raise ValueError("'tables' должно быть списком.")
+
+        for table in self.diagram["tables"]:
+            self._validate_table(table)
+
+        # Проверку relationships можно добавить при желании,
+        # но ты вроде хотел не проверять связи для классов,
+        # поэтому сделаем только базовую проверку существования ключа:
+        if "relationships" in self.diagram:
+            if not isinstance(self.diagram["relationships"], list):
+                raise ValueError("'relationships' должно быть списком.")
+
+    def _validate_table(self, table: dict) -> None:
+        """Проверяет корректность одной таблицы."""
+        if "name" not in table:
+            raise ValueError(f"Таблица должна иметь имя: {table}")
+
+        if "columns" not in table:
+            raise ValueError(f"Таблица {table['name']} должна содержать список 'columns'.")
+
+        if not isinstance(table["columns"], list):
+            raise ValueError(f"'columns' таблицы {table['name']} должно быть списком.")
+
+        for column in table["columns"]:
+            self._validate_column(column, table_name=table["name"])
+
+    def _validate_column(self, column: dict, table_name: str) -> None:
+        """Проверяет корректность одного столбца."""
+        if "name" not in column or "type" not in column:
+            raise ValueError(f"Каждый столбец в таблице {table_name} должен иметь 'name' и 'type'.")
+
+        if "foreign_key" in column:
+            foreign_key = column["foreign_key"]
+            if not isinstance(foreign_key, dict):
+                raise ValueError(f"'foreign_key' в столбце {column['name']} таблицы {table_name} должен быть словарём.")
+            if "references" not in foreign_key or "column" not in foreign_key:
+                raise ValueError(f"'foreign_key' в столбце {column['name']} таблицы {table_name} должен содержать 'references' и 'column'.")
+
+
+class DockerComposeDiagramValidator:
+    """Проверяет корректность представления диаграммы Docker Compose."""
+
+    def __init__(self, diagram: dict):
+        self.diagram = diagram
+
+    def validate(self) -> None:
+        """Запускает все проверки."""
+        if "nodes" not in self.diagram:
+            raise ValueError("Диаграмма должна содержать ключ 'nodes'.")
+
+        if not isinstance(self.diagram["nodes"], list):
+            raise ValueError("'nodes' должно быть списком.")
+
+        if any("name" not in node for node in self.diagram["nodes"]):
+            raise ValueError("Каждый узел в 'nodes' должен иметь ключ 'name'.")
+
+        node_names = {node["name"] for node in self.diagram["nodes"]}
+
+        if "connections" in self.diagram:
+            if not isinstance(self.diagram["connections"], list):
+                raise ValueError("'connections' должно быть списком.")
+            for connection in self.diagram["connections"]:
+                self._validate_connection(connection, node_names)
+
+    def _validate_connection(self, connection: dict, node_names: set) -> None:
+        """Проверяет корректность одного соединения."""
+        required_keys = {"from", "to", "label"}
+        if not required_keys.issubset(connection.keys()):
+            raise ValueError(f"Соединение должно содержать ключи {required_keys}: {connection}")
+
+        if connection["from"] not in node_names:
+            raise ValueError(f"Узел-источник '{connection['from']}' не найден в 'nodes'.")
+
+        if connection["to"] not in node_names:
+            raise ValueError(f"Узел-получатель '{connection['to']}' не найден в 'nodes'.")
+
+
 class Generator:
     """ Базовый класс генератора """
 
-    def __init__(self, file_path: str, template_file: str, output_file: str):
+    def __init__(self, file_path: str, template_file: str, output_file: str, language: str = None, validate_code: bool = True):
         self.file_path = Path(file_path)
         self.template_file = Path(template_file)
         self.output_file = Path(output_file)
+        self.language = language  # Новый параметр для понимания типа кода
+        self.validate_code = validate_code  # Флаг для включения/выключения валидации
 
     def load_json(self) -> Dict[str, Any]:
         """ Загружает JSON-файл """
@@ -47,9 +226,14 @@ class Generator:
 
         print(f"Сгенерированный файл записан: {self.output_file}")
 
+        if self.validate_code:
+            if self.language:
+                validator = CodeValidator(self.language)
+                validator.validate(str(self.output_file))
+
 
 class SQLGenerator(Generator):
-    """ Генератор SQL-кода """
+    """ Генератор SQL-кода для Postgesql """
 
     def parse_data(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """ Разбирает JSON-схему базы данных """
@@ -94,6 +278,8 @@ class OracleSQLGenerator(SQLGenerator):
 
 class PythonClassGenerator(Generator):
     """ Генератор Python-классов с типами """
+    def __init__(self, file_path: str, template_file: str, output_file: str, language: str, validate_code: bool = False):
+        super().__init__(file_path, template_file, output_file, language, validate_code)
 
     def map_type(self, type_name: str) -> str:
         """ Сопоставление типов для Python """
@@ -232,31 +418,41 @@ def detect_generator(file_path: str) -> Generator:
         data = json.load(file)
 
     if "tables" in data:
-        db_type = input("Выберите тип базы данных для генерации (mysql/oracle): ").strip().lower()
-        if db_type == "mysql":
+        validator = DatabaseDiagramValidator(data)
+        validator.validate()
+        db_type = input("Выберите тип базы данных для генерации (postgresql/mysql/oracle): ").strip().lower()
+        if db_type == "postgresql":
+            return SQLGenerator(file_path, "jinja_templates/postgresql_template.jinja2", "generated_sql/postgresql_db.sql")
+        elif db_type == "mysql":
             return MySQLGenerator(file_path)
         elif db_type == "oracle":
             return OracleSQLGenerator(file_path)
         else:
             raise ValueError(f"Неизвестная база данных: {db_type}")
     elif "classes" in data:
+        validator = ClassDiagramValidator(data)
+        validator.validate()
+        validate_code_input = input("Хотите ли вы выполнить проверку сгенерированного кода? (y/n): ").strip().lower()
+        validate_code = validate_code_input == "y"
         language = input("Выберите язык генерации (python/java/cpp): ").strip().lower()
         if language == "python":
-            return PythonClassGenerator(file_path, "jinja_templates/classes_python.jinja2", "generated_code/classes.py")
+            return PythonClassGenerator(file_path, "jinja_templates/classes_python.jinja2", "generated_code/classes.py", language=language, validate_code=validate_code)
         elif language == "java":
-            return JavaClassGenerator(file_path, "jinja_templates/classes_java.jinja2", "generated_code/classes.java")
+            return JavaClassGenerator(file_path, "jinja_templates/classes_java.jinja2", "generated_code/classes.java", language=language, validate_code=validate_code)
         elif language == "cpp":
-            return CppClassGenerator(file_path, "jinja_templates/classes_cpp.jinja2", "generated_code/classes.cpp")
+            return CppClassGenerator(file_path, "jinja_templates/classes_cpp.jinja2", "generated_code/classes.cpp", language=language, validate_code=validate_code)
         else:
             raise ValueError(f"Неизвестный язык генерации: {language}")
     elif "nodes" in data and "connections" in data:
+        validator = DockerComposeDiagramValidator(data)
+        validator.validate()
         return DockerComposeGenerator(file_path, "jinja_templates/docker_compose.jinja2", "generated_code/docker-compose.yaml")
     else:
         raise ValueError("Неизвестный формат JSON. Ожидаются ключи 'tables', 'classes' или 'nodes'.")
 
 
 if __name__ == "__main__":
-    file_path = "json_templates/db.json"  # Укажите путь к JSON-файлу
+    file_path = "json_templates/classes.json"  # Укажите путь к JSON-файлу
     try:
         generator = detect_generator(file_path)
         generator.generate()
