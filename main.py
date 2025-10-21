@@ -110,9 +110,7 @@ class DatabaseDiagramValidator:
         for table in self.diagram["tables"]:
             self._validate_table(table)
 
-        # Проверку relationships можно добавить при желании,
-        # но ты вроде хотел не проверять связи для классов,
-        # поэтому сделаем только базовую проверку существования ключа:
+        # сделаем только базовую проверку существования ключа:
         if "relationships" in self.diagram:
             if not isinstance(self.diagram["relationships"], list):
                 raise ValueError("'relationships' должно быть списком.")
