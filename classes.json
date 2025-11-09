@@ -1,0 +1,204 @@
+{
+  "classes": [
+    {
+      "name": "User",
+      "attributes": [
+        {
+          "name": "id",
+          "type": "int"
+        },
+        {
+          "name": "username",
+          "type": "str"
+        },
+        {
+          "name": "email",
+          "type": "str"
+        },
+        {
+          "name": "created_at",
+          "type": "DateTime"
+        }
+      ],
+      "methods": [
+        {
+          "name": "get_profile",
+          "return_type": "UserProfile",
+          "params": []
+        },
+        {
+          "name": "update_email",
+          "return_type": "bool",
+          "params": [
+            {
+              "name": "new_email",
+              "type": "str"
+            }
+          ]
+        },
+        {
+          "name": "validate_password",
+          "return_type": "bool",
+          "params": [
+            {
+              "name": "password",
+              "type": "str"
+            }
+          ]
+        }
+      ],
+      "inherits": null
+    },
+    {
+      "name": "UserProfile",
+      "attributes": [
+        {
+          "name": "user_id",
+          "type": "int"
+        },
+        {
+          "name": "first_name",
+          "type": "str"
+        },
+        {
+          "name": "last_name",
+          "type": "str"
+        },
+        {
+          "name": "avatar_url",
+          "type": "str"
+        }
+      ],
+      "methods": [
+        {
+          "name": "get_full_name",
+          "return_type": "str",
+          "params": []
+        },
+        {
+          "name": "update_profile",
+          "return_type": "void",
+          "params": [
+            {
+              "name": "data",
+              "type": "Dict"
+            }
+          ]
+        }
+      ],
+      "inherits": null
+    },
+    {
+      "name": "Order",
+      "attributes": [
+        {
+          "name": "order_id",
+          "type": "int"
+        },
+        {
+          "name": "user_id",
+          "type": "int"
+        },
+        {
+          "name": "total_amount",
+          "type": "float"
+        },
+        {
+          "name": "status",
+          "type": "OrderStatus"
+        }
+      ],
+      "methods": [
+        {
+          "name": "calculate_total",
+          "return_type": "float",
+          "params": []
+        },
+        {
+          "name": "add_item",
+          "return_type": "void",
+          "params": [
+            {
+              "name": "product",
+              "type": "Product"
+            },
+            {
+              "name": "quantity",
+              "type": "int"
+            }
+          ]
+        },
+        {
+          "name": "process_payment",
+          "return_type": "bool",
+          "params": []
+        }
+      ],
+      "inherits": null
+    },
+    {
+      "name": "Product",
+      "attributes": [
+        {
+          "name": "product_id",
+          "type": "int"
+        },
+        {
+          "name": "name",
+          "type": "str"
+        },
+        {
+          "name": "price",
+          "type": "float"
+        },
+        {
+          "name": "stock_quantity",
+          "type": "int"
+        }
+      ],
+      "methods": [
+        {
+          "name": "update_price",
+          "return_type": "void",
+          "params": [
+            {
+              "name": "new_price",
+              "type": "float"
+            }
+          ]
+        },
+        {
+          "name": "reduce_stock",
+          "return_type": "bool",
+          "params": [
+            {
+              "name": "quantity",
+              "type": "int"
+            }
+          ]
+        }
+      ],
+      "inherits": null
+    }
+  ],
+  "relationships": [
+    {
+      "type": "inheritance",
+      "from": "AdminUser",
+      "to": "User",
+      "multiplicity": "one-to-one"
+    },
+    {
+      "type": "association",
+      "from": "",
+      "to": "",
+      "multiplicity": "one-to-one"
+    },
+    {
+      "type": "association",
+      "from": "",
+      "to": "",
+      "multiplicity": "one-to-many"
+    }
+  ]
+}

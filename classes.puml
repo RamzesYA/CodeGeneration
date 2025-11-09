@@ -1,0 +1,65 @@
+@startuml
+
+' ==============================
+' 📦 Описание классов
+' ==============================
+
+class User {
+  {field} - id: int
+  {field} - username: str
+  {field} - email: str
+  {field} - created_at: DateTime
+  {method} + get_profile(): UserProfile
+  {method} + update_email(new_email: str): bool
+  {method} + validate_password(password: str): bool
+}
+
+class UserProfile {
+  {field} - user_id: int
+  {field} - first_name: str
+  {field} - last_name: str
+  {field} - avatar_url: str
+  {method} + get_full_name(): str
+  {method} + update_profile(data: Dict): void
+}
+
+class Order {
+  {field} - order_id: int
+  {field} - user_id: int
+  {field} - total_amount: float
+  {field} - status: OrderStatus
+  {method} + calculate_total(): float
+  {method} + add_item(product: Product, quantity: int): void
+  {method} + process_payment(): bool
+}
+
+class Product {
+  {field} - product_id: int
+  {field} - name: str
+  {field} - price: float
+  {field} - stock_quantity: int
+  {method} + update_price(new_price: float): void
+  {method} + reduce_stock(quantity: int): bool
+}
+
+' ==============================
+' 🧭 Отношения между классами
+' ==============================
+
+' Наследование
+User <|-- AdminUser
+
+' Ассоциация
+User "1" -- "1" UserProfile : имеет >
+User "1" -- "0..*" Order : создает >
+
+' Агрегация
+Order o-- "1..*" Product : содержит >
+
+' Композиция
+Order *-- "0..*" OrderItem : включает >
+
+' Зависимость
+Order ..> PaymentService : использует >
+
+@enduml
