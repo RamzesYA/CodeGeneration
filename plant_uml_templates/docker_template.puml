@@ -1,0 +1,10 @@
+@startuml DeploymentDiagram
+
+node "Frontend"
+node "Backend"
+node "Database"
+
+"Frontend" --> "Backend" : REST
+"Backend" --> "Database" : SQL
+
+@enduml

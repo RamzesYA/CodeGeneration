@@ -1,0 +1,34 @@
+{
+  "classes": [
+    {
+      "name": "ClassName",
+      "attributes": [
+        {
+          "name": "attribute_name",
+          "type": "DataType"
+        }
+      ],
+      "methods": [
+        {
+          "name": "method_name",
+          "return_type": "ReturnType",
+          "params": [
+            {
+              "name": "param_name",
+              "type": "DataType"
+            }
+          ]
+        }
+      ],
+      "inherits": "ParentClassName | null"
+    }
+  ],
+  "relationships": [
+    {
+      "type": "association | aggregation | composition | inheritance | dependency",
+      "from": "SourceClass",
+      "to": "TargetClass",
+      "multiplicity": "one-to-one | one-to-many | many-to-one | many-to-many"
+    }
+  ]
+}

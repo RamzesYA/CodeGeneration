@@ -1,0 +1,15 @@
+{
+  "nodes": [
+    {
+      "name": "NodeName"
+    }
+  ],
+
+  "connections": [
+    {
+      "from": "SourceNode",
+      "to": "TargetNode",
+      "label": "ConnectionLabel"
+    }
+  ]
+}

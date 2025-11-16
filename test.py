@@ -4,6 +4,9 @@ import sys
 from typing import List, Dict, Any, Optional
 
 
+# ============================================================
+#   ПАРСЕР ДИАГРАММИ КЛАССОВ (старый функционал)
+# ============================================================
 class PlantUMLParser:
     def __init__(self):
         self.classes = []
@@ -11,7 +14,7 @@ class PlantUMLParser:
         self.current_class = None
 
     def parse_file(self, filename: str) -> Dict[str, Any]:
-        """Основной метод парсинга файла"""
+        """Чтение и парсинг файла"""
         try:
             with open(filename, 'r', encoding='utf-8') as file:
                 content = file.read()
@@ -24,31 +27,26 @@ class PlantUMLParser:
             sys.exit(1)
 
     def parse_content(self, content: str) -> Dict[str, Any]:
-        """Парсинг содержимого PlantUML"""
+        """Парсинг классовой диаграммы PlantUML"""
         lines = content.split('\n')
 
         for line in lines:
             line = line.strip()
 
-            # Пропускаем комментарии и пустые строки
             if not line or line.startswith("'") or line.startswith('@startuml') or line.startswith('@enduml'):
                 continue
 
-            # Парсинг классов
             if line.startswith('class '):
                 self.parse_class(line)
-            # Парсинг отношений
-            elif any(relation in line for relation in ['<|--', '--', 'o--', '*--', '..>']):
+            elif any(symbol in line for symbol in ['<|--', '--', 'o--', '*--', '..>']):
                 self.parse_relationship(line)
-            # Парсинг содержимого класса (атрибуты и методы)
             elif line.startswith('{') or (self.current_class and ('}' not in line)):
                 self.parse_class_content(line)
 
         return self.to_json()
 
+    # --- Остальной код твоего классового парсера (без изменений) ---
     def parse_class(self, line: str):
-        """Парсинг объявления класса"""
-        # Извлекаем имя класса
         class_match = re.match(r'class\s+(\w+)\s*\{?', line)
         if class_match:
             class_name = class_match.group(1)
@@ -61,33 +59,29 @@ class PlantUMLParser:
             self.classes.append(self.current_class)
 
     def parse_class_content(self, line: str):
-        """Парсинг атрибутов и методов внутри класса"""
         if not self.current_class:
             return
 
-        # Убираем фигурные скобки и лишние пробелы
         clean_line = re.sub(r'^\s*\{[^}]*\}\s*', '', line.strip())
         clean_line = clean_line.rstrip('}')
 
         if not clean_line or clean_line == '}':
             return
 
-        # Парсинг атрибута
         attribute_match = re.match(r'^(-|\+)\s*(\w+)\s*:\s*([^()]+)$', clean_line)
         if attribute_match:
             visibility, name, data_type = attribute_match.groups()
-            if visibility == '-':  # private атрибут
+            if visibility == '-':
                 self.current_class["attributes"].append({
                     "name": name.strip(),
                     "type": data_type.strip()
                 })
             return
 
-        # Парсинг метода
         method_match = re.match(r'^(\+|\-)\s*(\w+)\s*\((.*)\)\s*:\s*([^()]+)$', clean_line)
         if method_match:
             visibility, name, params_str, return_type = method_match.groups()
-            if visibility == '+':  # public метод
+            if visibility == '+':
                 params = self.parse_method_params(params_str)
                 self.current_class["methods"].append({
                     "name": name.strip(),
@@ -96,37 +90,27 @@ class PlantUMLParser:
                 })
 
     def parse_method_params(self, params_str: str) -> List[Dict[str, str]]:
-        """Парсинг параметров метода"""
         params = []
         if not params_str.strip():
             return params
 
-        param_parts = params_str.split(',')
-        for param in param_parts:
+        for param in params_str.split(','):
             param = param.strip()
             if ':' in param:
                 name, param_type = param.split(':', 1)
-                params.append({
-                    "name": name.strip(),
-                    "type": param_type.strip()
-                })
-
+                params.append({"name": name.strip(), "type": param_type.strip()})
         return params
 
     def parse_relationship(self, line: str):
-        """Парсинг отношений между классами"""
-        # Определяем тип отношения
         relationship_type = None
         multiplicity = "one-to-one"
 
         if '<|--' in line:
             relationship_type = "inheritance"
-            # Для наследования определяем родителя и потомка
             parts = line.split('<|--')
             if len(parts) == 2:
                 parent = self.clean_class_name(parts[0].strip())
                 child = self.clean_class_name(parts[1].strip())
-                # Обновляем наследование для класса-потомка
                 for cls in self.classes:
                     if cls["name"] == child:
                         cls["inherits"] = parent
@@ -138,7 +122,6 @@ class PlantUMLParser:
                 })
             return
 
-        # Для других типов отношений
         if '..>' in line:
             relationship_type = "dependency"
             line = line.replace('..>', '--')
@@ -151,20 +134,14 @@ class PlantUMLParser:
         else:
             relationship_type = "association"
 
-        # Извлекаем классы и множественность
         pattern = r'\"([^\"]*)\"?\s*--\s*\"([^\"]*)\"?'
         match = re.search(pattern, line)
 
         if match:
             left_part, right_part = match.groups()
-
-            # Извлекаем имена классов
             left_class = self.extract_class_name(left_part)
             right_class = self.extract_class_name(right_part)
-
-            # Определяем множественность
             multiplicity = self.determine_multiplicity(left_part, right_part)
-
             self.relationships.append({
                 "type": relationship_type,
                 "from": left_class,
@@ -173,17 +150,12 @@ class PlantUMLParser:
             })
 
     def clean_class_name(self, class_name: str) -> str:
-        """Очищает имя класса от лишних символов"""
-        # Убираем кавычки и множественность
         return re.sub(r'[\"0-9.*]', '', class_name).strip()
 
     def extract_class_name(self, part: str) -> str:
-        """Извлекает имя класса из части отношения"""
-        # Убираем множественность и лишние символы
         return re.sub(r'[\"0-9.*]', '', part).strip()
 
     def determine_multiplicity(self, left: str, right: str) -> str:
-        """Определяет тип множественности на основе обозначений"""
         left_mult = self.parse_multiplicity(left)
         right_mult = self.parse_multiplicity(right)
 
@@ -197,62 +169,112 @@ class PlantUMLParser:
             return "many-to-many"
 
     def parse_multiplicity(self, part: str) -> str:
-        """Парсит обозначение множественности"""
         if '0..*' in part or '1..*' in part or '*' in part:
             return "many"
         else:
             return "one"
 
     def to_json(self) -> Dict[str, Any]:
-        """Возвращает результат в формате JSON"""
         return {
             "classes": self.classes,
             "relationships": self.relationships
         }
 
 
-def save_to_json(data: Dict[str, Any], filename: str = "classes.json"):
-    """Сохраняет данные в JSON файл"""
+# ============================================================
+#   НОВЫЙ ФУНКЦИОНАЛ: ПАРСЕР DEPLOYMENT DIAGRAM
+# ============================================================
+class DeploymentDiagramParser:
+    """Парсер диаграммы развертывания."""
+
+    NODE_PATTERN = r'node\s+"([^"]+)"'
+    CONNECTION_PATTERN = r'"([^"]+)"\s*-->\s*"([^"]+)"\s*:\s*(.+)'
+
+    def parse(self, content: str) -> Dict[str, Any]:
+        nodes = []
+        node_set = set()
+        connections = []
+
+        for match in re.finditer(self.NODE_PATTERN, content):
+            name = match.group(1).strip()
+            if name not in node_set:
+                node_set.add(name)
+                nodes.append({"name": name})
+
+        for match in re.finditer(self.CONNECTION_PATTERN, content):
+            src = match.group(1).strip()
+            dst = match.group(2).strip()
+            label = match.group(3).strip()
+
+            connections.append({
+                "from": src,
+                "to": dst,
+                "label": label
+            })
+
+        return {
+            "nodes": nodes,
+            "connections": connections
+        }
+
+
+# ============================================================
+#   ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
+# ============================================================
+def save_to_json(data: Dict[str, Any], filename: str):
     try:
         with open(filename, 'w', encoding='utf-8') as f:
             json.dump(data, f, indent=2, ensure_ascii=False)
-        print(f"✅ Результат успешно сохранен в файл: {filename}")
-        return True
+        print(f"✅ Сохранено в {filename}")
     except Exception as e:
-        print(f"❌ Ошибка при сохранении файла: {e}")
-        return False
+        print(f"❌ Ошибка сохранения: {e}")
 
 
+def detect_diagram_type(text: str) -> str:
+    """Определяет тип диаграммы."""
+    if "node " in text or "-->" in text:
+        return "deployment"
+    if "class " in text:
+        return "class"
+    return "unknown"
+
+
+# ============================================================
+#   MAIN
+# ============================================================
 def main():
-    """Основная функция программы"""
-    print("=== PlantUML to JSON Parser ===")
-    print("Автоматическое сохранение в classes.json\n")
+    print("=== PlantUML → JSON Parser ===")
 
-    # Запрашиваем имя файла у пользователя
     filename = input("Введите путь к файлу PlantUML: ").strip()
-
     if not filename:
-        print("Ошибка: Не указано имя файла.")
+        print("Ошибка: не указан файл.")
         return
 
-    # Создаем парсер и парсим файл
-    parser = PlantUMLParser()
-    result = parser.parse_file(filename)
+    try:
+        with open(filename, "r", encoding="utf-8") as f:
+            content = f.read()
+    except Exception as e:
+        print(f"Ошибка чтения: {e}")
+        return
 
-    # Выводим результат в консоль
-    print("\n=== Результат парсинга ===")
-    print(json.dumps(result, indent=2, ensure_ascii=False))
+    diagram_type = detect_diagram_type(content)
+    print(f"\nОбнаружен тип диаграммы: {diagram_type}")
 
-    # Автоматически сохраняем в classes.json
-    print("\n=== Сохранение файла ===")
-    save_to_json(result, "classes.json")
+    if diagram_type == "class":
+        parser = PlantUMLParser()
+        result = parser.parse_content(content)
+        save_to_json(result, "classes.json")
 
-    # Дополнительная опция для сохранения под другим именем
-    custom_save = input("\nХотите сохранить под другим именем? (y/n): ").strip().lower()
-    if custom_save == 'y':
-        custom_filename = input("Введите имя файла: ").strip()
-        if custom_filename:
-            save_to_json(result, custom_filename)
+    elif diagram_type == "deployment":
+        parser = DeploymentDiagramParser()
+        result = parser.parse(content)
+        save_to_json(result, "deployment.json")
+
+    else:
+        print("❌ Не удалось определить тип диаграммы.")
+        return
+
+    print("\nГотово!")
 
 
 if __name__ == "__main__":
