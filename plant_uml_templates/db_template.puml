@@ -1,0 +1,34 @@
+@startuml
+
+' ============================
+'   TABLE DEFINITIONS
+' ============================
+
+entity TableName {
+    +column_name : DATA_TYPE <<PK>> <<FK=ReferencedTable.ReferencedColumn>>
+    ' Аннотации, которые можно использовать:
+    '   <<PK>>  — primary key
+    '   <<FK=Table.Column>> — foreign key
+}
+
+
+' Пример второй таблицы
+entity AnotherTable {
+    +another_column : DATA_TYPE
+    +ref_id : INT <<FK=TableName.column_name>>
+}
+
+
+' ============================
+'   RELATIONSHIPS (easy parsing)
+' ============================
+
+' Формат:
+' one-to-one:    TableA ||--|| TableB
+' one-to-many:   TableA ||--o{ TableB
+' many-to-one:   TableA }o--|| TableB
+' many-to-many:  TableA }o--o{ TableB
+
+TableName ||--o{ AnotherTable : column_name
+
+@enduml

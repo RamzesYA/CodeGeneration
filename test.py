@@ -219,6 +219,113 @@ class DeploymentDiagramParser:
 
 
 # ============================================================
+#   НОВЫЙ ФУНКЦИОНАЛ: ПАРСЕР DATABASE DIAGRAM
+# ============================================================
+class DatabaseDiagramParser:
+    ENTITY_PATTERN = r'entity\s+"?(\w+)"?\s*\{([^}]*)\}'
+    COLUMN_PATTERN = r'\+(\w+)\s*:\s*([\w()0-9,]+)(.*?)$'
+    REL_PATTERN = r'"?([A-Za-z_][A-Za-z0-9_]*)"?\s*(\|\|--\|\||\|\|--o\{|\}o--\|\||\}o--o\{)\s*"?([A-Za-z_][A-Za-z0-9_]*)"?'
+
+    def parse(self, content: str) -> Dict[str, Any]:
+        tables = []
+        table_map = {}   # name -> table dict
+        relationships = []
+
+        # ===============================
+        # 1) Парсим таблицы и их колонки
+        # ===============================
+        for match in re.finditer(self.ENTITY_PATTERN, content, re.DOTALL):
+            table_name = match.group(1)
+            raw_columns = match.group(2).strip().split("\n")
+
+            table = {
+                "name": table_name,
+                "columns": []
+            }
+
+            for col in raw_columns:
+                col = col.strip()
+                if not col.startswith("+"):
+                    continue
+
+                col_match = re.match(self.COLUMN_PATTERN, col)
+                if not col_match:
+                    continue
+
+                name = col_match.group(1)
+                dtype = col_match.group(2)
+                annotations = col_match.group(3)
+
+                pk = "<<PK>>" in annotations
+                nn = "<<NN>>" in annotations
+                ai = "<<AI>>" in annotations
+
+                fk = None
+                fk_match = re.search(r'<<FK=(\w+)\.(\w+)>>', annotations)
+                if fk_match:
+                    fk = {
+                        "references": fk_match.group(1),
+                        "column": fk_match.group(2)
+                    }
+
+                table["columns"].append({
+                    "name": name,
+                    "type": dtype,
+                    "primary_key": pk,
+                    "auto_increment": ai,
+                    "not_null": nn,
+                    "foreign_key": fk
+                })
+
+            tables.append(table)
+            table_map[table_name] = table
+
+        # ===============================
+        # 2) Парсим отношения (без колонок)
+        # ===============================
+        for match in re.finditer(self.REL_PATTERN, content):
+            left = match.group(1)
+            symbol = match.group(2)
+            right = match.group(3)
+
+            if symbol == "||--||":
+                rel_type = "one-to-one"
+            elif symbol == "||--o{":
+                rel_type = "one-to-many"
+            elif symbol == "}o--||":
+                rel_type = "many-to-one"
+            elif symbol == "}o--o{":
+                rel_type = "many-to-many"
+            else:
+                rel_type = "unknown"
+
+            # ===============================
+            # 3) Автоматический поиск "on"
+            # ===============================
+            on_column = None
+            target_table = table_map.get(right)
+
+            if target_table:
+                for col in target_table["columns"]:
+                    fk = col.get("foreign_key")
+                    if fk and fk["references"] == left:
+                        on_column = col["name"]
+                        break
+
+            relationships.append({
+                "type": rel_type,
+                "from": left,
+                "to": right,
+                "on": on_column
+            })
+
+        return {
+            "tables": tables,
+            "relationships": relationships
+        }
+
+
+# ============================================================
 #   ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
 # ============================================================
 def save_to_json(data: Dict[str, Any], filename: str):
@@ -232,10 +339,19 @@ def save_to_json(data: Dict[str, Any], filename: str):
 
 def detect_diagram_type(text: str) -> str:
     """Определяет тип диаграммы."""
+
+    # Database diagram
+    if "entity " in text and ("||--" in text or "<<PK>>" in text or "<<FK=" in text):
+        return "database"
+
+    # Deployment diagram
     if "node " in text or "-->" in text:
         return "deployment"
+
+    # Class diagram
     if "class " in text:
         return "class"
+
     return "unknown"
 
 
@@ -269,6 +385,11 @@ def main():
         parser = DeploymentDiagramParser()
         result = parser.parse(content)
         save_to_json(result, "deployment.json")
+
+    elif diagram_type == "database":
+        parser = DatabaseDiagramParser()
+        result = parser.parse(content)
+        save_to_json(result, "database.json")
 
     else:
         print("❌ Не удалось определить тип диаграммы.")

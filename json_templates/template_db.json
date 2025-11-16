@@ -1,0 +1,28 @@
+{
+  "tables": [
+    {
+      "name": "TableName",
+      "columns": [
+        {
+          "name": "column_name",
+          "type": "DATA_TYPE",
+          "primary_key": false,
+          "auto_increment": false,
+          "not_null": false,
+          "foreign_key": {
+            "references": "ReferencedTable",
+            "column": "ReferencedColumn"
+          }
+        }
+      ]
+    }
+  ],
+  "relationships": [
+    {
+      "type": "one-to-one | one-to-many | many-to-one | many-to-many",
+      "from": "SourceTable",
+      "to": "TargetTable",
+      "on": "ColumnUsedForRelationship"
+    }
+  ]
+}
