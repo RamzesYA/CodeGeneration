@@ -28,6 +28,9 @@ entity Comments {
     +created_at : DATETIME
 }
 
+' ============================
+'   RELATIONSHIPS
+' ============================
 
 Users ||--o{ Posts
 Users ||--o{ Comments

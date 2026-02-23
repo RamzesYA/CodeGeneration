@@ -12,7 +12,7 @@ import sys
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from main import detect_generator_from_data
 from datetime import datetime
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 import subprocess
 import importlib
 import traceback
@@ -196,6 +196,66 @@ def run_plugin_runner(parsed_json_path: Path, diagram_type: Optional[str], langu
         return {"status": "error", "reason": str(e), "trace": traceback.format_exc()}
 
 
+def infer_diagram_type_from_keys(parsed_keys: Optional[list]) -> str:
+    keys = set(parsed_keys or [])
+    if "classes" in keys:
+        return "classes"
+    if "tables" in keys:
+        return "database"
+    if "nodes" in keys:
+        return "deployment"
+    return "unknown"
+
+
+def run_plugin_runner_checked(parsed_json_path: Path, diagram_type: Optional[str], languages: Optional[list]):
+    """Run generator and convert mismatch/failure into explicit HTTP errors."""
+    plugin_result = run_plugin_runner(parsed_json_path, diagram_type, languages)
+    if not isinstance(plugin_result, dict):
+        return plugin_result
+
+    status = plugin_result.get("status")
+    if status == "skipped":
+        reason = plugin_result.get("reason", "")
+        if "required keys for diagram type" in reason:
+            parsed_keys = plugin_result.get("parsed_keys", [])
+            detected_type = infer_diagram_type_from_keys(parsed_keys)
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    f"Selected diagram type '{diagram_type}' does not match parsed diagram type "
+                    f"'{detected_type}'. Parsed keys: {parsed_keys}"
+                ),
+            )
+    elif status == "error":
+        raise HTTPException(status_code=500, detail=f"Generation failed: {plugin_result.get('reason', 'unknown error')}")
+
+    return plugin_result
+
+
+def collect_generated_files(job_id: str) -> List[Path]:
+    """Collect generated artifacts for a job.
+
+    Prefer files from the latest plugin run directory. If that is unavailable,
+    fallback to files written directly into the job directory.
+    """
+    job_dir = STORAGE_DIR / job_id
+    if not job_dir.exists():
+        return []
+
+    plugin_root = job_dir / "plugin_outputs"
+    if plugin_root.exists():
+        run_dirs = [d for d in plugin_root.iterdir() if d.is_dir()]
+        if run_dirs:
+            run_dirs.sort(key=lambda p: p.stat().st_mtime, reverse=True)
+            latest_run_dir = run_dirs[0]
+            files = [f for f in latest_run_dir.rglob("*") if f.is_file() and not f.name.startswith("error_")]
+            if files:
+                return files
+
+    ignored = {"input.puml", "parsed.json", "README.md", "input.json"}
+    return [f for f in job_dir.rglob("*") if f.is_file() and f.name not in ignored]
+
+
 def ensure_token() -> str:
     if TOKEN_FILE.exists():
         return TOKEN_FILE.read_text().strip()
@@ -221,6 +281,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["Content-Disposition"],
 )
 
 
@@ -305,7 +366,7 @@ def parse_plantuml_classes(puml_text: str) -> dict:
                     pass
                 plugin_result = None
                 if diagram_type:
-                    plugin_result = run_plugin_runner(parsed_file, diagram_type, languages)
+                    plugin_result = run_plugin_runner_checked(parsed_file, diagram_type, languages)
                     print("plugin_runner result:", plugin_result)
                 return {"status": "ok", "result": result, "job_id": job_id, "plugin": plugin_result}
             # fallback: ignore
@@ -510,7 +571,7 @@ async def receive(payload: dict, authorization: Optional[str] = Header(None)):
                     job_id, parsed_file = persist_parsed_result(parsed, puml)
                     plugin_result = None
                     if diagram_type_hint and parsed_file:
-                        plugin_result = run_plugin_runner(parsed_file, diagram_type_hint, languages_hint)
+                        plugin_result = run_plugin_runner_checked(parsed_file, diagram_type_hint, languages_hint)
                         print('plugin_runner result:', plugin_result)
                     return {"status": "ok", "result": parsed, "job_id": job_id, "plugin": plugin_result}
             elif diagram_type_hint == 'database':
@@ -522,7 +583,7 @@ async def receive(payload: dict, authorization: Optional[str] = Header(None)):
                     job_id, parsed_file = persist_parsed_result(parsed, puml)
                     plugin_result = None
                     if diagram_type_hint and parsed_file:
-                        plugin_result = run_plugin_runner(parsed_file, diagram_type_hint, languages_hint)
+                        plugin_result = run_plugin_runner_checked(parsed_file, diagram_type_hint, languages_hint)
                         print('plugin_runner result:', plugin_result)
                     return {"status": "ok", "result": parsed, "job_id": job_id, "plugin": plugin_result}
             elif diagram_type_hint == 'deployment':
@@ -534,9 +595,11 @@ async def receive(payload: dict, authorization: Optional[str] = Header(None)):
                     job_id, parsed_file = persist_parsed_result(parsed, puml)
                     plugin_result = None
                     if diagram_type_hint and parsed_file:
-                        plugin_result = run_plugin_runner(parsed_file, diagram_type_hint, languages_hint)
+                        plugin_result = run_plugin_runner_checked(parsed_file, diagram_type_hint, languages_hint)
                         print('plugin_runner result:', plugin_result)
                     return {"status": "ok", "result": parsed, "job_id": job_id, "plugin": plugin_result}
+        except HTTPException:
+            raise
         except Exception:
             # ignore and continue to general parsing
             traceback.print_exc()
@@ -568,11 +631,13 @@ async def receive(payload: dict, authorization: Optional[str] = Header(None)):
             pass
         plugin_result = None
         if diagram_type and parsed_file:
-            plugin_result = run_plugin_runner(parsed_file, diagram_type, languages)
+            plugin_result = run_plugin_runner_checked(parsed_file, diagram_type, languages)
             print("plugin_runner result:", plugin_result)
         elif diagram_type and not parsed_file:
             plugin_result = {"status":"skipped","reason":"parsed file not available"}
         return {"status": "ok", "result": result, "job_id": job_id, "plugin": plugin_result}
+    except HTTPException:
+        raise
     except Exception:
         print("\n--- puml_service import failed, falling back ---\n")
         traceback.print_exc()
@@ -606,11 +671,13 @@ async def receive(payload: dict, authorization: Optional[str] = Header(None)):
                 pass
             plugin_result = None
             if diagram_type and parsed_file:
-                plugin_result = run_plugin_runner(parsed_file, diagram_type, languages)
+                plugin_result = run_plugin_runner_checked(parsed_file, diagram_type, languages)
                 print("plugin_runner result:", plugin_result)
             elif diagram_type and not parsed_file:
                 plugin_result = {"status":"skipped","reason":"parsed file not available"}
             return {"status": "ok", "result": result, "job_id": job_id, "plugin": plugin_result}
+        except HTTPException:
+            raise
         except Exception as e:
             print("\n--- puml2json in-process failed ---\n")
             print(str(e))
@@ -676,6 +743,35 @@ async def get_zip(job_id: str, request: Request, authorization: Optional[str] = 
     if not zip_path.exists():
         raise HTTPException(status_code=404, detail="file not found")
     return FileResponse(path=str(zip_path), filename=f"{job_id}.zip")
+
+
+@app.get("/download/{job_id}")
+async def download_generated(job_id: str, authorization: Optional[str] = Header(None)):
+    """Download generated artifacts for a job.
+
+    - If exactly one generated file exists, return it directly.
+    - If multiple files exist, return a zip archive.
+    """
+    check_auth(authorization)
+    files = collect_generated_files(job_id)
+    if not files:
+        raise HTTPException(status_code=404, detail="generated files not found")
+
+    if len(files) == 1:
+        file_path = files[0]
+        return FileResponse(path=str(file_path), filename=file_path.name)
+
+    bundle_path = STORAGE_DIR / job_id / f"{job_id}_generated.zip"
+    run_root = files[0].parent
+    with zipfile.ZipFile(bundle_path, "w", compression=zipfile.ZIP_DEFLATED) as z:
+        for file_path in files:
+            try:
+                arcname = str(file_path.relative_to(run_root))
+            except Exception:
+                arcname = file_path.name
+            z.write(file_path, arcname=arcname)
+
+    return FileResponse(path=str(bundle_path), filename=bundle_path.name)
 
 
 if __name__ == "__main__":

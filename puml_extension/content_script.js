@@ -119,9 +119,21 @@ function injectButton() {
       if (resp.data && resp.data.result) console.log('Parsed JSON result from server:', resp.data.result);
 
       if (resp.status === 200) {
-        alert('PlantUML sent to server. Check server console and page console for parsed JSON.');
+        const jobId = resp.data && resp.data.job_id;
+        if (!jobId) {
+          alert('PlantUML sent, but no job_id returned from server.');
+          return;
+        }
+
+        const filename = await downloadGeneratedFiles(config.serverUrl, config.token, jobId);
+        alert('Готово. Скачан файл: ' + filename);
       } else {
-        alert('Server response: ' + resp.status + ' ' + JSON.stringify(resp.data || resp));
+        const detail = resp && resp.data && resp.data.detail;
+        if (detail) {
+          alert(typeof detail === 'string' ? detail : JSON.stringify(detail));
+        } else {
+          alert('Server response: ' + resp.status + ' ' + JSON.stringify(resp.data || resp));
+        }
       }
     } catch (e) {
       alert('Network error: ' + e.message);
@@ -129,6 +141,81 @@ function injectButton() {
   });
 
   document.body.appendChild(btn);
+}
+
+function extractFilename(contentDisposition, fallbackName) {
+  if (!contentDisposition) return fallbackName;
+  const utf8Match = contentDisposition.match(/filename\*=UTF-8''([^;]+)/i);
+  if (utf8Match && utf8Match[1]) {
+    try {
+      return decodeURIComponent(utf8Match[1].trim());
+    } catch (e) {
+      return utf8Match[1].trim();
+    }
+  }
+  const plainMatch = contentDisposition.match(/filename="?([^";]+)"?/i);
+  if (plainMatch && plainMatch[1]) return plainMatch[1].trim();
+  return fallbackName;
+}
+
+function fallbackNameByContentType(contentType, jobId) {
+  const ct = (contentType || '').toLowerCase();
+  if (ct.includes('zip')) return `${jobId}.zip`;
+  if (ct.includes('json')) return `${jobId}.json`;
+  if (ct.includes('sql')) return `${jobId}.sql`;
+  if (ct.includes('yaml') || ct.includes('yml')) return `${jobId}.yaml`;
+  if (ct.includes('java')) return `${jobId}.java`;
+  if (ct.includes('c++') || ct.includes('cpp')) return `${jobId}.cpp`;
+  if (ct.includes('python') || ct.includes('x-python')) return `${jobId}.py`;
+  return `${jobId}.txt`;
+}
+
+async function downloadGeneratedFiles(serverUrl, token, jobId) {
+  const base = (serverUrl || '').replace(/\/$/, '');
+  const url = `${base}/download/${encodeURIComponent(jobId)}`;
+  const resp = await fetch(url, {
+    method: 'GET',
+    headers: {
+      'Authorization': 'Bearer ' + (token || '')
+    }
+  });
+
+  if (!resp.ok) {
+    const errText = await resp.text().catch(() => '');
+    throw new Error(`download failed: ${resp.status} ${errText}`);
+  }
+
+  const blob = await resp.blob();
+  const contentDisposition = resp.headers.get('Content-Disposition');
+  const contentType = resp.headers.get('Content-Type');
+  const fallback = fallbackNameByContentType(contentType, jobId);
+  const filename = extractFilename(contentDisposition, fallback);
+  console.log('Download response:', {
+    status: resp.status,
+    contentType,
+    contentDisposition,
+    blobSize: blob.size,
+    filename
+  });
+
+  const objectUrl = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = objectUrl;
+  a.download = filename;
+  a.style.display = 'none';
+  document.body.appendChild(a);
+  // Defer click to the next frame to make the download start reliably.
+  requestAnimationFrame(() => a.click());
+  setTimeout(() => {
+    try {
+      a.remove();
+    } catch (e) {
+      // ignore
+    }
+    // Keep object URL long enough; early revoke may break larger downloads.
+    URL.revokeObjectURL(objectUrl);
+  }, 60000);
+  return filename;
 }
 
 // Modal dialog for selecting diagram type and languages
@@ -233,6 +320,13 @@ function showDiagramDialog() {
     const langWrap = document.createElement('div');
     langWrap.style.marginTop = '8px';
     box.appendChild(langWrap);
+    const validationNote = document.createElement('div');
+    validationNote.style.marginTop = '8px';
+    validationNote.style.fontSize = '12px';
+    validationNote.style.color = '#b42318';
+    validationNote.style.display = 'none';
+    validationNote.textContent = 'Выберите хотя бы один язык для генерации.';
+    box.appendChild(validationNote);
 
     const langSets = {
       classes: [
@@ -299,15 +393,6 @@ function showDiagramDialog() {
       langWrap.appendChild(grid);
     }
 
-    // initial render
-    renderLangs('classes');
-
-    // update on radio change
-    typeWrap.addEventListener('change', (e) => {
-      const v = typeWrap.querySelector('input[name="puml_diagram_type"]:checked').value;
-      renderLangs(v);
-    });
-
     // buttons
     const btnRow = document.createElement('div');
     btnRow.style.display = 'flex';
@@ -330,11 +415,38 @@ function showDiagramDialog() {
     okBtn.style.border = 'none';
     okBtn.style.padding = '8px 14px';
     okBtn.style.borderRadius = '6px';
+
+    function updateOkState() {
+      const selectedTypeNode = typeWrap.querySelector('input[name="puml_diagram_type"]:checked');
+      const selectedType = selectedTypeNode ? selectedTypeNode.value : 'classes';
+      const selectedLangsCount = langWrap.querySelectorAll('input[name="puml_lang"]:checked').length;
+      const requiresLanguage = selectedType === 'classes' || selectedType === 'database';
+      const canSubmit = !requiresLanguage || selectedLangsCount > 0;
+
+      okBtn.disabled = !canSubmit;
+      okBtn.style.opacity = canSubmit ? '1' : '0.5';
+      okBtn.style.cursor = canSubmit ? 'pointer' : 'not-allowed';
+      validationNote.style.display = canSubmit ? 'none' : 'block';
+    }
+
     okBtn.addEventListener('click', () => {
+      if (okBtn.disabled) return;
       const diagramType = typeWrap.querySelector('input[name="puml_diagram_type"]:checked').value;
       const langs = Array.from(langWrap.querySelectorAll('input[name="puml_lang"]:checked')).map((n) => n.value);
       cleanupAndResolve({ diagramType, languages: langs });
     });
+
+    // initial render
+    renderLangs('classes');
+    updateOkState();
+
+    // update on radio change
+    typeWrap.addEventListener('change', () => {
+      const v = typeWrap.querySelector('input[name="puml_diagram_type"]:checked').value;
+      renderLangs(v);
+      updateOkState();
+    });
+    langWrap.addEventListener('change', updateOkState);
 
     btnRow.appendChild(cancelBtn);
     btnRow.appendChild(okBtn);

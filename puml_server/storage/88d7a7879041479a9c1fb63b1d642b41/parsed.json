@@ -1,0 +1,168 @@
+{
+  "tables": [
+    {
+      "name": "Users",
+      "columns": [
+        {
+          "name": "user_id",
+          "type": "INT",
+          "primary_key": true,
+          "auto_increment": false,
+          "not_null": false,
+          "foreign_key": null
+        },
+        {
+          "name": "username",
+          "type": "VARCHAR(50)",
+          "primary_key": false,
+          "auto_increment": false,
+          "not_null": false,
+          "foreign_key": null
+        },
+        {
+          "name": "email",
+          "type": "VARCHAR(100)",
+          "primary_key": false,
+          "auto_increment": false,
+          "not_null": false,
+          "foreign_key": null
+        },
+        {
+          "name": "created_at",
+          "type": "DATETIME",
+          "primary_key": false,
+          "auto_increment": false,
+          "not_null": false,
+          "foreign_key": null
+        }
+      ]
+    },
+    {
+      "name": "Posts",
+      "columns": [
+        {
+          "name": "post_id",
+          "type": "INT",
+          "primary_key": true,
+          "auto_increment": false,
+          "not_null": false,
+          "foreign_key": null
+        },
+        {
+          "name": "user_id",
+          "type": "INT",
+          "primary_key": false,
+          "auto_increment": false,
+          "not_null": false,
+          "foreign_key": {
+            "references": "Users",
+            "column": "user_id"
+          }
+        },
+        {
+          "name": "title",
+          "type": "VARCHAR(200)",
+          "primary_key": false,
+          "auto_increment": false,
+          "not_null": false,
+          "foreign_key": null
+        },
+        {
+          "name": "content",
+          "type": "TEXT",
+          "primary_key": false,
+          "auto_increment": false,
+          "not_null": false,
+          "foreign_key": null
+        },
+        {
+          "name": "created_at",
+          "type": "DATETIME",
+          "primary_key": false,
+          "auto_increment": false,
+          "not_null": false,
+          "foreign_key": null
+        },
+        {
+          "name": "updated_at",
+          "type": "DATETIME",
+          "primary_key": false,
+          "auto_increment": false,
+          "not_null": false,
+          "foreign_key": null
+        }
+      ]
+    },
+    {
+      "name": "Comments",
+      "columns": [
+        {
+          "name": "comment_id",
+          "type": "INT",
+          "primary_key": true,
+          "auto_increment": false,
+          "not_null": false,
+          "foreign_key": null
+        },
+        {
+          "name": "post_id",
+          "type": "INT",
+          "primary_key": false,
+          "auto_increment": false,
+          "not_null": false,
+          "foreign_key": {
+            "references": "Posts",
+            "column": "post_id"
+          }
+        },
+        {
+          "name": "user_id",
+          "type": "INT",
+          "primary_key": false,
+          "auto_increment": false,
+          "not_null": false,
+          "foreign_key": {
+            "references": "Users",
+            "column": "user_id"
+          }
+        },
+        {
+          "name": "comment_text",
+          "type": "TEXT",
+          "primary_key": false,
+          "auto_increment": false,
+          "not_null": false,
+          "foreign_key": null
+        },
+        {
+          "name": "created_at",
+          "type": "DATETIME",
+          "primary_key": false,
+          "auto_increment": false,
+          "not_null": false,
+          "foreign_key": null
+        }
+      ]
+    }
+  ],
+  "relationships": [
+    {
+      "type": "one-to-many",
+      "from": "Users",
+      "to": "Posts",
+      "on": "user_id"
+    },
+    {
+      "type": "one-to-many",
+      "from": "Users",
+      "to": "Comments",
+      "on": "user_id"
+    },
+    {
+      "type": "one-to-many",
+      "from": "Posts",
+      "to": "Comments",
+      "on": "post_id"
+    }
+  ]
+}

@@ -1,0 +1,39 @@
+@startuml
+
+' ============================
+'   TABLE DEFINITIONS
+' ============================
+
+entity Users {
+    +user_id : INT <<PK>>
+    +username : VARCHAR(50) <<N>>
+    +email : VARCHAR(100) <<N>>
+    +created_at : DATETIME
+}
+
+entity Posts {
+    +post_id : INT <<PK>>
+    +user_id : INT <<FK=Users.user_id>>
+    +title : VARCHAR(200) <<N>>
+    +content : TEXT
+    +created_at : DATETIME
+    +updated_at : DATETIME
+}
+
+entity Comments {
+    +comment_id : INT <<PK>>
+    +post_id : INT <<FK=Posts.post_id>>
+    +user_id : INT <<FK=Users.user_id>>
+    +comment_text : TEXT <<N>>
+    +created_at : DATETIME
+}
+
+' ============================
+'   RELATIONSHIPS
+' ============================
+
+Users ||--o{ Posts
+Users ||--o{ Comments
+Posts ||--o{ Comments
+
+@enduml
