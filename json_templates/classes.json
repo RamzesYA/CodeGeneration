@@ -4,64 +4,69 @@
       "name": "User",
       "attributes": [
         {"name": "id", "type": "int"},
-        {"name": "username", "type": "str"},
-        {"name": "email", "type": "str"}
-      ],
-      "methods": [
-        {"name": "create_task", "return_type": "Task", "params": [{"name": "title", "type": "str"}, {"name": "project", "type": "Project"}]}
-      ],
-      "inherits": null
-    },
-    {
-      "name": "Project",
-      "attributes": [
-        {"name": "id", "type": "int"},
         {"name": "name", "type": "str"},
-        {"name": "owner", "type": "User"},
-        {"name": "members", "type": "List[User]"}
+        {"name": "email", "type": "str"},
+        {"name": "is_librarian", "type": "bool"}
       ],
       "methods": [
-        {"name": "add_member", "return_type": "None", "params": [{"name": "user", "type": "User"}]},
-        {"name": "create_task", "return_type": "Task", "params": [{"name": "title", "type": "str"}, {"name": "creator", "type": "User"}]}
+        {"name": "search_books", "return_type": "List[Book]", "params": [{"name": "query", "type": "str"}]},
+        {"name": "borrow_book", "return_type": "Loan", "params": [{"name": "book", "type": "Book"}]}
       ],
       "inherits": null
     },
     {
-      "name": "Task",
+      "name": "Librarian",
+      "attributes": [],
+      "methods": [
+        {"name": "add_book", "return_type": "None", "params": [{"name": "book", "type": "Book"}]},
+        {"name": "remove_book", "return_type": "None", "params": [{"name": "book_id", "type": "int"}]}
+      ],
+      "inherits": "User"
+    },
+    {
+      "name": "Book",
       "attributes": [
         {"name": "id", "type": "int"},
         {"name": "title", "type": "str"},
-        {"name": "description", "type": "str"},
-        {"name": "status", "type": "str"},
-        {"name": "assignee", "type": "User"},
-        {"name": "project", "type": "Project"},
-        {"name": "comments", "type": "List[Comment]"}
+        {"name": "author", "type": "str"},
+        {"name": "isbn", "type": "str"},
+        {"name": "available_copies", "type": "int"}
       ],
       "methods": [
-        {"name": "change_status", "return_type": "None", "params": [{"name": "new_status", "type": "str"}]},
-        {"name": "assign_to", "return_type": "None", "params": [{"name": "user", "type": "User"}]}
+        {"name": "is_available", "return_type": "bool", "params": []}
       ],
       "inherits": null
     },
     {
-      "name": "Comment",
+      "name": "Loan",
       "attributes": [
         {"name": "id", "type": "int"},
-        {"name": "content", "type": "str"},
-        {"name": "author", "type": "User"},
-        {"name": "task", "type": "Task"}
+        {"name": "user", "type": "User"},
+        {"name": "book", "type": "Book"},
+        {"name": "due_date", "type": "str"},
+        {"name": "returned", "type": "bool"}
       ],
       "methods": [
-        {"name": "edit", "return_type": "None", "params": [{"name": "new_content", "type": "str"}]}
+        {"name": "mark_returned", "return_type": "None", "params": []}
+      ],
+      "inherits": null
+    },
+    {
+      "name": "Catalog",
+      "attributes": [
+        {"name": "books", "type": "List[Book]"}
+      ],
+      "methods": [
+        {"name": "find_by_title", "return_type": "List[Book]", "params": [{"name": "title", "type": "str"}]},
+        {"name": "add_book", "return_type": "None", "params": [{"name": "book", "type": "Book"}]}
       ],
       "inherits": null
     }
   ],
   "relationships": [
-    {"type": "association", "from": "User", "to": "Task", "multiplicity": "one-to-many"},
-    {"type": "association", "from": "User", "to": "Project", "multiplicity": "many-to-many"},
-    {"type": "composition", "from": "Project", "to": "Task", "multiplicity": "one-to-many"},
-    {"type": "composition", "from": "Task", "to": "Comment", "multiplicity": "one-to-many"},
-    {"type": "association", "from": "User", "to": "Comment", "multiplicity": "one-to-many"}
+    {"type": "association", "from": "User", "to": "Loan", "multiplicity": "one-to-many"},
+    {"type": "association", "from": "Loan", "to": "Book", "multiplicity": "many-to-one"},
+    {"type": "composition", "from": "Catalog", "to": "Book", "multiplicity": "one-to-many"},
+    {"type": "inheritance", "from": "Librarian", "to": "User", "multiplicity": "is-a"}
   ]
 }

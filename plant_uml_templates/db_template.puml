@@ -5,10 +5,11 @@
 ' ============================
 
 entity TableName {
-    +column_name : DATA_TYPE <<PK>> <<FK=ReferencedTable.ReferencedColumn>>
+    +column_name : DATA_TYPE <<PK>> <<FK=ReferencedTable.ReferencedColumn>> <<N>>
     ' Аннотации, которые можно использовать:
     '   <<PK>>  — primary key
     '   <<FK=Table.Column>> — foreign key
+    ,   <<N>>  — null
 }
 
 
@@ -20,7 +21,7 @@ entity AnotherTable {
 
 
 ' ============================
-'   RELATIONSHIPS (easy parsing)
+'   RELATIONSHIPS
 ' ============================
 
 ' Формат:

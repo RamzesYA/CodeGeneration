@@ -1,0 +1,21 @@
+{
+  "manifest_version": 3,
+  "name": "PlantUML Local Generator Connector",
+  "version": "0.1",
+  "description": "Send PlantUML from editor.plantuml.com to a local generator server.",
+  "permissions": ["storage", "activeTab", "scripting"],
+  "host_permissions": ["http://localhost/*", "http://127.0.0.1/*"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://editor.plantuml.com/*"],
+      "js": ["content_script.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

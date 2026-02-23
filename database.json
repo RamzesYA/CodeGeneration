@@ -1,0 +1,63 @@
+{
+  "tables": [
+    {
+      "name": "Users",
+      "columns": [
+        {
+          "name": "user_id",
+          "type": "INT",
+          "primary_key": true,
+          "auto_increment": false,
+          "not_null": false,
+          "foreign_key": null
+        }
+      ]
+    },
+    {
+      "name": "Posts",
+      "columns": [
+        {
+          "name": "post_id",
+          "type": "INT",
+          "primary_key": true,
+          "auto_increment": false,
+          "not_null": false,
+          "foreign_key": {
+            "references": "Users",
+            "column": "user_id"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Comments",
+      "columns": [
+        {
+          "name": "comment_id",
+          "type": "INT",
+          "primary_key": true,
+          "auto_increment": false,
+          "not_null": false,
+          "foreign_key": {
+            "references": "Posts",
+            "column": "post_id"
+          }
+        }
+      ]
+    }
+  ],
+  "relationships": [
+    {
+      "type": "one-to-many",
+      "from": "Users",
+      "to": "PostsUsers",
+      "on": null
+    },
+    {
+      "type": "one-to-many",
+      "from": "CommentsPosts",
+      "to": "Comments",
+      "on": null
+    }
+  ]
+}

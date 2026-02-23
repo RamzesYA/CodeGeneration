@@ -1,54 +1,42 @@
 {
   "nodes": [
-    {
-      "name": "Backend"
-    },
-    {
-      "name": "Database"
-    },
-    {
-      "name": "Frontend"
-    },
-    {
-      "name": "Worker"
-    },
-    {
-      "name": "Redis"
-    },
-    {
-      "name": "Nginx"
-    }
+    { "name": "Frontend" },
+    { "name": "Backend" },
+    { "name": "PostgreSQL Database" },
+    { "name": "Redis Cache" },
+    { "name": "Worker Service" },
+    { "name": "Nginx Reverse Proxy" }
   ],
   "connections": [
     {
       "from": "Frontend",
       "to": "Backend",
-      "label": "HTTPS"
+      "label": "REST API"
     },
     {
       "from": "Backend",
-      "to": "Database",
+      "to": "PostgreSQL Database",
       "label": "PostgreSQL"
     },
     {
       "from": "Backend",
-      "to": "Redis",
-      "label": "AMQP"
+      "to": "Redis Cache",
+      "label": "Cache"
     },
     {
       "from": "Backend",
-      "to": "Worker",
-      "label": "AMQP"
-    },
-    {
-      "from": "Backend",
-      "to": "Nginx",
-      "label": "HTTP"
+      "to": "Worker Service",
+      "label": "Job Queue"
     },
     {
       "from": "Frontend",
-      "to": "Nginx",
+      "to": "Nginx Reverse Proxy",
       "label": "HTTP"
+    },
+    {
+      "from": "Nginx Reverse Proxy",
+      "to": "Backend",
+      "label": "Proxy"
     }
   ]
 }

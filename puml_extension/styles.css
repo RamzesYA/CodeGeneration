@@ -1,0 +1,6 @@
+body{ font-family: Arial, sans-serif; margin:0; padding:12px; width:300px }
+.container label{ display:block; margin-bottom:8px; font-size:13px }
+.container input, .container select{ width:100%; padding:6px; margin-top:4px; box-sizing:border-box }
+.row{ display:flex; gap:8px; margin-top:8px }
+.row button{ flex:1; padding:8px }
+.help{ font-size:11px; color:#666 }

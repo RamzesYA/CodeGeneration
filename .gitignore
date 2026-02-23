@@ -2,3 +2,15 @@
 .idea
 .generated_sql
 .json_templates
+.generated_code
+__pycache__/main.cpython-311.pyc
+__pycache__/main.cpython-313.pyc
+__pycache__/puml_service.cpython-311.pyc
+__pycache__/puml2json.cpython-311.pyc
+generated_sql/mysql_db.sql
+generated_sql/oracle_db.sql
+generated_sql/postgresql_db.sql
+generated_code/classes.cpp
+generated_code/classes.java
+generated_code/classes.py
+generated_code/docker-compose.yaml

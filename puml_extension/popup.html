@@ -1,0 +1,33 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>PlantUML Connector</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="container">
+    <h3>Local Generator</h3>
+    <label>Server URL
+      <input id="serverUrl" type="text" placeholder="http://localhost:8000">
+    </label>
+    <label>Token
+      <input id="token" type="text" placeholder="server token">
+    </label>
+    <label>Method
+      <select id="method">
+        <option value="python">python</option>
+        <option value="java">java</option>
+        <option value="cpp">cpp</option>
+      </select>
+    </label>
+    <div class="row">
+      <button id="save">Save</button>
+      <button id="send">Send current PUML</button>
+    </div>
+    <p class="help">Make sure server token is set and server allows CORS for editor origin.</p>
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html>

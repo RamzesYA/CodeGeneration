@@ -1,0 +1,25 @@
+{
+  "nodes": [
+    {
+      "name": "Frontend"
+    },
+    {
+      "name": "Backend"
+    },
+    {
+      "name": "Database"
+    }
+  ],
+  "connections": [
+    {
+      "from": "Frontend",
+      "to": "Backend",
+      "label": "REST"
+    },
+    {
+      "from": "Backend",
+      "to": "Database",
+      "label": "SQL"
+    }
+  ]
+}

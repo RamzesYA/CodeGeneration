@@ -136,10 +136,22 @@ class DatabaseDiagramValidator:
 
         if "foreign_key" in column:
             foreign_key = column["foreign_key"]
-            if not isinstance(foreign_key, dict):
-                raise ValueError(f"'foreign_key' в столбце {column['name']} таблицы {table_name} должен быть словарём.")
-            if "references" not in foreign_key or "column" not in foreign_key:
-                raise ValueError(f"'foreign_key' в столбце {column['name']} таблицы {table_name} должен содержать 'references' и 'column'.")
+            # Accept None, dict, or string shorthand like "Table.column"
+            if foreign_key is None:
+                return
+            if isinstance(foreign_key, dict):
+                if "references" not in foreign_key or "column" not in foreign_key:
+                    raise ValueError(f"'foreign_key' в столбце {column['name']} таблицы {table_name} должен содержать 'references' и 'column'.")
+                return
+            if isinstance(foreign_key, str):
+                # try to parse formats like "Table.column" or "Table(column)" or "Table:column"
+                m = re.match(r"^(?P<table>[A-Za-z0-9_]+)[\.:(]?(?P<col>[A-Za-z0-9_]+)?\)?$", foreign_key.strip())
+                if m and m.group('col'):
+                    # normalize into dict for downstream code
+                    column["foreign_key"] = {"references": m.group('table'), "column": m.group('col')}
+                    return
+                raise ValueError(f"'foreign_key' в столбце {column['name']} таблицы {table_name} должен быть словарём или строкой 'Table.column'.")
+            raise ValueError(f"'foreign_key' в столбце {column['name']} таблицы {table_name} должен быть словарём, строкой или None.")
 
 
 class DockerComposeDiagramValidator:
@@ -447,6 +459,45 @@ def detect_generator(file_path: str) -> Generator:
         return DockerComposeGenerator(file_path, "jinja_templates/docker_compose.jinja2", "generated_code/docker-compose.yaml")
     else:
         raise ValueError("Неизвестный формат JSON. Ожидаются ключи 'tables', 'classes' или 'nodes'.")
+
+
+def detect_generator_from_data(data: dict, *, prefer_language: str = None, validate_code: bool = False, db_type: str = None) -> Generator:
+    """Non-interactive generator selector from parsed JSON data.
+
+    prefer_language: for classes -> 'python'|'java'|'cpp'
+    db_type: for database -> 'postgresql'|'mysql'|'oracle'
+    """
+    if "tables" in data:
+        validator = DatabaseDiagramValidator(data)
+        validator.validate()
+        if db_type is None:
+            db_type = "postgresql"
+        if db_type == "postgresql":
+            return SQLGenerator("<in-memory>", "jinja_templates/postgresql_template.jinja2", "generated_sql/postgresql_db.sql")
+        elif db_type == "mysql":
+            return MySQLGenerator("<in-memory>")
+        elif db_type == "oracle":
+            return OracleSQLGenerator("<in-memory>")
+        else:
+            raise ValueError(f"Неизвестная база данных: {db_type}")
+    elif "classes" in data:
+        validator = ClassDiagramValidator(data)
+        validator.validate()
+        language = (prefer_language or "python").lower()
+        if language == "python":
+            return PythonClassGenerator("<in-memory>", "jinja_templates/classes_python.jinja2", "generated_code/classes.py", language=language, validate_code=validate_code)
+        elif language == "java":
+            return JavaClassGenerator("<in-memory>", "jinja_templates/classes_java.jinja2", "generated_code/classes.java", language=language, validate_code=validate_code)
+        elif language == "cpp":
+            return CppClassGenerator("<in-memory>", "jinja_templates/classes_cpp.jinja2", "generated_code/classes.cpp", language=language, validate_code=validate_code)
+        else:
+            raise ValueError(f"Неизвестный язык генерации: {language}")
+    elif "nodes" in data and "connections" in data:
+        validator = DockerComposeDiagramValidator(data)
+        validator.validate()
+        return DockerComposeGenerator("<in-memory>", "jinja_templates/docker_compose.jinja2", "generated_code/docker-compose.yaml")
+    else:
+        raise ValueError("Неизвестный формат данных для генерации")
 
 
 if __name__ == "__main__":

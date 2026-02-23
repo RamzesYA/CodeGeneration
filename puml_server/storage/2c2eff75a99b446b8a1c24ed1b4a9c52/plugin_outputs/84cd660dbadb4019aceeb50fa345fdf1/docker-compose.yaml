@@ -1,0 +1,47 @@
+version: "3.9"
+services:
+
+  frontend:
+    container_name: frontend
+    image: image_registry_url                # Manually(Optional if build)
+    build:
+      context: ./path                        # Manually
+      dockerfile: ./path/.../Dockerfile      # Manually
+    environment:
+      - ENV_NAME:ENV_VALUE                   # Manually
+    ports:
+      - "1111:1111"                          # Manually
+    volumes:
+      - ./path:/app                          # Manually
+
+  backend:
+    container_name: backend
+    image: image_registry_url                # Manually(Optional if build)
+    build:
+      context: ./path                        # Manually
+      dockerfile: ./path/.../Dockerfile      # Manually
+    environment:
+      - ENV_NAME:ENV_VALUE                   # Manually
+    ports:
+      - "1111:1111"                          # Manually
+    volumes:
+      - ./path:/app                          # Manually
+    depends_on:
+      - frontend
+
+
+  database:
+    container_name: database
+    image: image_registry_url                # Manually(Optional if build)
+    build:
+      context: ./path                        # Manually
+      dockerfile: ./path/.../Dockerfile      # Manually
+    environment:
+      - ENV_NAME:ENV_VALUE                   # Manually
+    ports:
+      - "1111:1111"                          # Manually
+    volumes:
+      - ./path:/app                          # Manually
+    depends_on:
+      - backend
+
