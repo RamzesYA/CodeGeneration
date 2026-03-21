@@ -13,7 +13,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from main import detect_generator_from_data
 from datetime import datetime
 from typing import Optional, Dict, Any, List
-import subprocess
 import importlib
 import traceback
 
@@ -346,30 +345,17 @@ def parse_plantuml_classes(puml_text: str) -> dict:
         methods = []
         for line in body.splitlines():
             line = line.strip()
-            if not line:
-                try:
-                    job_id = uuid.uuid4().hex
-                    job_dir = STORAGE_DIR / job_id
-                    job_dir.mkdir(parents=True, exist_ok=True)
-                    parsed_file = job_dir / "parsed.json"
-                    parsed_file.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
-                    (job_dir / "input.puml").write_text(puml, encoding="utf-8")
-                    print(f"Saved parsed JSON to {parsed_file}")
-                except Exception as _e:
-                    print("Failed to persist parsed JSON:", _e)
-                diagram_type = None
-                languages = None
-                try:
-                    diagram_type = payload.get('diagramType') or payload.get('diagram_type')
-                    languages = payload.get('languages') or payload.get('langs')
-                except Exception:
-                    pass
-                plugin_result = None
-                if diagram_type:
-                    plugin_result = run_plugin_runner_checked(parsed_file, diagram_type, languages)
-                    print("plugin_runner result:", plugin_result)
-                return {"status": "ok", "result": result, "job_id": job_id, "plugin": plugin_result}
-            # fallback: ignore
+            if not line or line.startswith("'"):
+                continue
+            attr_match = re.match(r"^[\+\-#]\s*(\w+)\s*:\s*([A-Za-z0-9_\[\]]+)$", line)
+            if attr_match:
+                attrs.append({"name": attr_match.group(1), "type": attr_match.group(2)})
+                continue
+            method_match = re.match(r"^[\+\-#]\s*(\w+)\s*\((.*)\)\s*:\s*([A-Za-z0-9_\[\]]+)$", line)
+            if method_match:
+                methods.append({"name": method_match.group(1), "params": [], "return_type": method_match.group(3)})
+                continue
+            # ignore unsupported body lines
         classes.append({"name": name, "attributes": attrs, "methods": methods})
     return {"classes": classes}
 
@@ -451,6 +437,16 @@ def run_generation_sync(job_id: str, puml: str, method: str, options: Optional[d
     except Exception as e:
         JOBS[job_id]["status"] = "error"
         JOBS[job_id]["error"] = str(e)
+
+
+def ensure_parsed_result_or_raise(result: Any):
+    """Normalize parser output and raise HTTP errors for parse failures."""
+    if not isinstance(result, dict):
+        raise HTTPException(status_code=500, detail="Parser returned unexpected result type")
+    err = result.get("error")
+    if err:
+        raise HTTPException(status_code=400, detail=f"PlantUML parsing failed: {err}")
+    return result
 
 
 def run_generation_background(job_id: str, puml: str, method: str, options: Optional[dict]):
@@ -607,7 +603,7 @@ async def receive(payload: dict, authorization: Optional[str] = Header(None)):
     # prefer the new puml_service wrapper (clean function interface)
     try:
         import puml_service
-        result = puml_service.parse_puml_to_json(puml)
+        result = ensure_parsed_result_or_raise(puml_service.parse_puml_to_json(puml))
         print("\n--- puml_service output ---\n")
         try:
             print(json.dumps(result, ensure_ascii=False, indent=2))
@@ -656,6 +652,7 @@ async def receive(payload: dict, authorization: Optional[str] = Header(None)):
                 result = parser.parse(puml)
             else:
                 result = {"error": "unknown diagram type"}
+            result = ensure_parsed_result_or_raise(result)
 
             out = json.dumps(result, ensure_ascii=False, indent=2)
             print("\n--- puml2json (in-process) output ---\n")
@@ -682,47 +679,7 @@ async def receive(payload: dict, authorization: Optional[str] = Header(None)):
             print("\n--- puml2json in-process failed ---\n")
             print(str(e))
             traceback.print_exc()
-            # fallback to subprocess invocation (unbuffered)
-            puml2json_path = Path(__file__).resolve().parent.parent / 'puml2json.py'
-            if not puml2json_path.exists():
-                return {"status": "ok", "warning": "puml2json.py not found and in-process import failed"}
-
-            try:
-                proc = subprocess.run([sys.executable, '-u', str(puml2json_path)], input=puml.encode('utf-8'), capture_output=True, timeout=30)
-            except subprocess.TimeoutExpired:
-                raise HTTPException(status_code=500, detail="puml2json timed out")
-            except Exception as e:
-                raise HTTPException(status_code=500, detail=str(e))
-
-            stdout = proc.stdout.decode('utf-8', errors='replace') if proc.stdout else ''
-            stderr = proc.stderr.decode('utf-8', errors='replace') if proc.stderr else ''
-
-            print("\n--- puml2json stdout (subprocess) ---\n")
-            print(stdout)
-            if stderr:
-                print("\n--- puml2json stderr (subprocess) ---\n")
-                print(stderr)
-
-            if proc.returncode != 0:
-                raise HTTPException(status_code=500, detail=f"puml2json failed: {stderr[:200]}")
-
-            try:
-                result = json.loads(stdout)
-                # Persist parsed JSON and raw PUML
-                job_id, parsed_file = persist_parsed_result(result, puml)
-                return {"status": "ok", "result": result, "job_id": job_id}
-            except Exception:
-                # still persist raw stdout for inspection
-                try:
-                    job_id = uuid.uuid4().hex
-                    job_dir = STORAGE_DIR / job_id
-                    job_dir.mkdir(parents=True, exist_ok=True)
-                    (job_dir / "output.txt").write_text(stdout, encoding="utf-8")
-                    (job_dir / "input.puml").write_text(puml, encoding="utf-8")
-                    print(f"Saved raw output to {job_dir / 'output.txt'}")
-                except Exception as _e:
-                    print("Failed to persist subprocess output:", _e)
-                return {"status": "ok", "output": stdout, "note": "output not valid JSON", "job_id": job_id}
+            raise HTTPException(status_code=500, detail="Failed to parse PlantUML with available parsers")
 
 
 @app.get("/status/{job_id}")
@@ -761,12 +718,12 @@ async def download_generated(job_id: str, authorization: Optional[str] = Header(
         file_path = files[0]
         return FileResponse(path=str(file_path), filename=file_path.name)
 
+    job_dir = STORAGE_DIR / job_id
     bundle_path = STORAGE_DIR / job_id / f"{job_id}_generated.zip"
-    run_root = files[0].parent
     with zipfile.ZipFile(bundle_path, "w", compression=zipfile.ZIP_DEFLATED) as z:
         for file_path in files:
             try:
-                arcname = str(file_path.relative_to(run_root))
+                arcname = str(file_path.relative_to(job_dir))
             except Exception:
                 arcname = file_path.name
             z.write(file_path, arcname=arcname)

@@ -1,7 +1,10 @@
 {% for table in tables %}
 CREATE TABLE {{ table.name }} (
     {%- for column in table.columns %}
-    {{ column.name }} {%- if column.type == 'TEXT' %} CLOB {%- else %} {{ column.type }} {%- endif %}
+    {{ column.name }} {%- if column.type|upper == 'TEXT' %} CLOB
+    {%- elif column.type|upper in ['BOOLEAN', 'BOOL'] %} NUMBER(1)
+    {%- elif column.type|upper == 'DATETIME' %} TIMESTAMP
+    {%- else %} {{ column.type }} {%- endif %}
     {%- if column.auto_increment %} GENERATED ALWAYS AS IDENTITY{% endif %}
     {%- if column.primary_key %} PRIMARY KEY{% endif %}
     {%- if column.not_null %} NOT NULL ENABLE{% endif %}
